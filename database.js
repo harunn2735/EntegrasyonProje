@@ -67,6 +67,7 @@ function initDb() {
       barcode TEXT NOT NULL,
       title TEXT NOT NULL,
       category TEXT,
+      xml_category_id INTEGER,
       stock INTEGER DEFAULT 0,
       cost_price REAL DEFAULT 0,
       sale_price REAL DEFAULT 0,
@@ -128,6 +129,7 @@ function initDb() {
   safeAlter(`ALTER TABLE dealers ADD COLUMN password_hash TEXT`);
   safeAlter(`ALTER TABLE dealers ADD COLUMN created_at DATETIME DEFAULT (datetime('now'))`);
   safeAlter(`ALTER TABLE logs ADD COLUMN dealer_id INTEGER`);
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN xml_category_id INTEGER`);
 
   // Varsayılan admin hesabı oluştur (mevcut bayilere şifre yoksa)
   const dealers = db.prepare('SELECT id, email FROM dealers WHERE password_hash IS NULL').all();
