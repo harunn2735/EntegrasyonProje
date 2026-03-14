@@ -1,0 +1,68 @@
+{
+  "batchRequestId": "b0d68fe1-c33e-4d6c-9744-be455711b9f8-1772288654",
+  "items": [
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254315055",
+          "title": "Alt Baldir Destegi Ayarlanabilir Neopren",
+          "productMainId": "8945254315055",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 2,
+          "stockCode": "8945254315055",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "description": "Alt Baldir Destegi Ayarlanabilir Neopren",
+          "currencyType": "-",
+          "listPrice": 327,
+          "salePrice": 327,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://cdn.dsmcdn.com/ty1/product/media/images/20200812/11/7798319/11111/1_1_org.jpg"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": null,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": null,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": null,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254315055"
+      },
+      "status": "FAILED",
+      "failureReasons": [
+        "Kategori özellik değeri geçerli değildir. Kategori Id: 3870, Özellik id: 1192, Özellik Adı: Menşei",
+        "Kategori özellik değeri geçerli değildir. Kategori Id: 3870, Özellik id: 47, Özellik Adı: Renk",
+        "Kategori özellik değeri geçerli değildir. Kategori Id: 3870, Özellik id: 348, Özellik Adı: Web Color"
+      ]
+    }
+  ],
+  "status": "COMPLETED",
+  "creationDate": 1772202254226,
+  "lastModification": 1772202393053,
+  "sourceType": "API",
+  "itemCount": 1,
+  "failedItemCount": 1,
+  "batchRequestType": "ProductV2OnBoarding",
+  "notes": null,
+  "objectKey": null,
+  "storeFrontCode": null
+}

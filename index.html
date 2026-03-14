@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Bayi Portalı – Trendyol Entegrasyon</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --bg: #f0f2f5;
+      --bg2: #ffffff;
+      --bg3: #f4f5f7;
+      --card: #ffffff;
+      --accent: #6c63ff;
+      --accent2: #8b5cf6;
+      --green: #16a34a;
+      --red: #dc2626;
+      --yellow: #d97706;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 12px;
+      --shadow: 0 2px 12px rgba(0, 0, 0, .08)
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh
+    }
+
+    /* ─── LAYOUT ─── */
+    #app {
+      display: flex;
+      min-height: 100vh
+    }
+
+    .sidebar {
+      width: 240px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      height: 100vh;
+      z-index: 100
+    }
+
+    .sidebar-logo {
+      padding: 24px 20px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .sidebar-logo h2 {
+      font-size: 16px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent
+    }
+
+    .sidebar-logo span {
+      font-size: 11px;
+      color: var(--muted);
+      display: block;
+      margin-top: 2px
+    }
+
+    .nav {
+      flex: 1;
+      padding: 16px 0;
+      overflow-y: auto
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 20px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      transition: .2s;
+      border-left: 3px solid transparent
+    }
+
+    .nav-item:hover {
+      background: var(--bg3);
+      color: var(--text)
+    }
+
+    .nav-item.active {
+      background: rgba(108, 99, 255, .1);
+      color: var(--accent);
+      border-left-color: var(--accent);
+      font-weight: 600
+    }
+
+    .nav-item .icon {
+      font-size: 18px;
+      width: 22px;
+      text-align: center
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border)
+    }
+
+    .dealer-badge {
+      background: var(--bg3);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .dealer-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700
+    }
+
+    .dealer-info {
+      flex: 1;
+      min-width: 0
+    }
+
+    .dealer-info .name {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .dealer-info .email {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 1px
+    }
+
+    .main {
+      margin-left: 240px;
+      flex: 1;
+      overflow-y: auto
+    }
+
+    .topbar {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50
+    }
+
+    .topbar h1 {
+      font-size: 18px;
+      font-weight: 600
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: .2s
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff
+    }
+
+    .btn-primary:hover {
+      background: #574fd6
+    }
+
+    .btn-success {
+      background: var(--green);
+      color: #fff
+    }
+
+    .btn-success:hover {
+      background: #16a34a
+    }
+
+    .btn-danger {
+      background: var(--red);
+      color: #fff
+    }
+
+    .btn-danger:hover {
+      background: #dc2626
+    }
+
+    .btn-ghost {
+      background: var(--bg3);
+      color: var(--text)
+    }
+
+    .btn-ghost:hover {
+      background: var(--border)
+    }
+
+    .btn-sm {
+      padding: 5px 11px;
+      font-size: 12px
+    }
+
+    .content {
+      padding: 28px
+    }
+
+    /* ─── LOGIN ─── */
+    #login-page {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #ede9fe 0%, #f0f2f5 60%, #dbeafe 100%)
+    }
+
+    .login-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px 40px;
+      width: 420px;
+      box-shadow: var(--shadow);
+      text-align: center
+    }
+
+    .login-card .logo {
+      font-size: 48px;
+      margin-bottom: 16px
+    }
+
+    .login-card h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 6px
+    }
+
+    .login-card p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 32px
+    }
+
+    /* ─── FORMS ─── */
+    .form-group {
+      margin-bottom: 16px;
+      text-align: left
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .5px
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      transition: .2s
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108, 99, 255, .15)
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px
+    }
+
+    /* ─── CARDS ─── */
+    .grid {
+      display: grid;
+      gap: 18px
+    }
+
+    .grid-4 {
+      grid-template-columns: repeat(4, 1fr)
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, 1fr)
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, 1fr)
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px
+    }
+
+    .kpi-card {
+      position: relative;
+      overflow: hidden;
+      transition: .2s
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow)
+    }
+
+    .kpi-card .kpi-icon {
+      font-size: 32px;
+      margin-bottom: 12px
+    }
+
+    .kpi-card .kpi-val {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 4px
+    }
+
+    .kpi-card .kpi-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500
+    }
+
+    .kpi-card .kpi-glow {
+      position: absolute;
+      top: -20px;
+      right: -20px;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      opacity: .08
+    }
+
+    /* ─── TABLE ─── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border)
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px
+    }
+
+    thead {
+      background: var(--bg3)
+    }
+
+    th {
+      padding: 11px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      white-space: nowrap
+    }
+
+    td {
+      padding: 11px 14px;
+      border-top: 1px solid var(--border);
+      vertical-align: middle
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, .02)
+    }
+
+    /* ─── BADGE ─── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600
+    }
+
+    .badge-green {
+      background: rgba(34, 197, 94, .15);
+      color: var(--green)
+    }
+
+    .badge-red {
+      background: rgba(239, 68, 68, .15);
+      color: var(--red)
+    }
+
+    .badge-yellow {
+      background: rgba(245, 158, 11, .15);
+      color: var(--yellow)
+    }
+
+    .badge-blue {
+      background: rgba(108, 99, 255, .15);
+      color: var(--accent2)
+    }
+
+    /* ─── MODAL ─── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .3);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(4px)
+    }
+
+    .modal-overlay.show {
+      display: flex
+    }
+
+    .modal {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      width: 480px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow)
+    }
+
+    .modal h2 {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 20px
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 20px
+    }
+
+    /* ─── TOAST ─── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px
+    }
+
+    .toast-item {
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      animation: slideIn .3s ease;
+      box-shadow: var(--shadow);
+      max-width: 340px
+    }
+
+    .toast-success {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      color: #15803d
+    }
+
+    .toast-error {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #b91c1c
+    }
+
+    .toast-info {
+      background: #eef2ff;
+      border: 1px solid #a5b4fc;
+      color: #4338ca
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1
+      }
+    }
+
+    /* ─── MISC ─── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px
+    }
+
+    .section-header h2 {
+      font-size: 17px;
+      font-weight: 600
+    }
+
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px
+    }
+
+    .search-bar input {
+      flex: 1;
+      padding: 9px 14px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px
+    }
+
+    .search-bar input:focus {
+      outline: none;
+      border-color: var(--accent)
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px;
+      color: var(--muted)
+    }
+
+    .empty-state .emoji {
+      font-size: 48px;
+      margin-bottom: 12px
+    }
+
+    .progress-ring {
+      display: inline-block
+    }
+
+    .page {
+      display: none
+    }
+
+    .page.active {
+      display: block
+    }
+
+    .tip {
+      background: rgba(108, 99, 255, .08);
+      border: 1px solid rgba(108, 99, 255, .2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--accent2);
+      margin-bottom: 16px
+    }
+
+    .stock-input {
+      width: 80px;
+      padding: 4px 8px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px;
+      text-align: center
+    }
+
+    .stock-input:focus {
+      outline: none;
+      border-color: var(--accent)
+    }
+
+    .supplier-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px
+    }
+
+    .supplier-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px
+    }
+
+    .range-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1
+    }
+
+    .range-wrap input[type=range] {
+      flex: 1;
+      accent-color: var(--accent)
+    }
+
+    .range-val {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 52px;
+      text-align: right
+    }
+
+    .summary-box {
+      background: linear-gradient(135deg, rgba(108, 99, 255, .15), rgba(167, 139, 250, .1));
+      border: 1px solid rgba(108, 99, 255, .3);
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px
+    }
+
+    .summary-box .s-item {
+      text-align: center
+    }
+
+    .summary-box .s-val {
+      font-size: 18px;
+      font-weight: 700
+    }
+
+    .summary-box .s-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px
+    }
+
+    @media(max-width:900px) {
+      .sidebar {
+        display: none
+      }
+
+      .main {
+        margin-left: 0
+      }
+
+      .grid-4,
+      .grid-3 {
+        grid-template-columns: repeat(2, 1fr)
+      }
+
+      .grid-2 {
+        grid-template-columns: 1fr
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- LOGIN PAGE -->
+  <div id="login-page">
+    <div class="login-card">
+      <div class="logo">🛍️</div>
+      <h1>Bayi Portalı</h1>
+      <p>Trendyol Entegrasyon Sistemi</p>
+      <div class="form-group">
+        <label>E-Posta</label>
+        <input type="email" id="login-email" placeholder="bayi@demo.com" />
+      </div>
+      <div class="form-group">
+        <label>Şifre</label>
+        <input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" />
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;margin-top:8px" onclick="doLogin()"
+        id="login-btn">Giriş Yap</button>
+      <p style="margin-top:20px;font-size:11px;color:var(--muted)">Demo: bayi@demo.com / bayi123</p>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app" style="display:none">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-logo">
+        <h2>🛍️ Bayi Portalı</h2>
+        <span>Trendyol Entegrasyon</span>
+      </div>
+      <nav class="nav">
+        <div class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard"><span
+            class="icon">📊</span>Dashboard</div>
+        <div class="nav-item" onclick="navigate('xml')" id="nav-xml"><span class="icon">🔗</span>XML Feedler</div>
+        <div class="nav-item" onclick="navigate('products')" id="nav-products"><span class="icon">📦</span>Ürünlerim
+        </div>
+        <div class="nav-item" onclick="navigate('margins')" id="nav-margins"><span class="icon">💹</span>Kâr Marjları
+        </div>
+        <div class="nav-item" onclick="navigate('profitloss')" id="nav-profitloss"><span class="icon">📈</span>Kâr/Zarar
+        </div>
+        <div class="nav-item" onclick="navigate('stores')" id="nav-stores"><span class="icon">🏪</span>Mağazalarım</div>
+        <div class="nav-item" onclick="navigate('orders')" id="nav-orders"><span class="icon">📋</span>Siparişler</div>
+        <div class="nav-item" onclick="navigate('settings')" id="nav-settings"><span class="icon">⚙️</span>Trendyol
+          Ayarları</div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="dealer-badge">
+          <div class="dealer-avatar" id="dealer-avatar">B</div>
+          <div class="dealer-info">
+            <div class="name" id="dealer-name">Yükleniyor...</div>
+            <div class="email" id="dealer-email"></div>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="logout()">🚪 Çıkış Yap</button>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+      <div class="topbar">
+        <h1 id="page-title">Dashboard</h1>
+        <div id="topbar-actions"></div>
+      </div>
+      <div class="content">
+
+        <!-- DASHBOARD -->
+        <div class="page active" id="page-dashboard">
+          <div class="grid grid-4" style="margin-bottom:24px" id="kpi-grid">
+            <div class="card kpi-card">
+              <div class="kpi-icon">📦</div>
+              <div class="kpi-val" id="kpi-orders">-</div>
+              <div class="kpi-label">Toplam Sipariş</div>
+              <div class="kpi-glow" style="background:var(--accent)"></div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-icon">💰</div>
+              <div class="kpi-val" id="kpi-revenue">-</div>
+              <div class="kpi-label">Net Ciro (₺)</div>
+              <div class="kpi-glow" style="background:var(--green)"></div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-icon">↩️</div>
+              <div class="kpi-val" id="kpi-refunds">-</div>
+              <div class="kpi-label">İade Sayısı</div>
+              <div class="kpi-glow" style="background:var(--red)"></div>
+            </div>
+            <div class="card kpi-card">
+              <div class="kpi-icon">🏪</div>
+              <div class="kpi-val" id="kpi-stores">-</div>
+              <div class="kpi-label">Mağaza Sayısı</div>
+              <div class="kpi-glow" style="background:var(--yellow)"></div>
+            </div>
+          </div>
+          <div class="grid grid-3">
+            <div class="card">
+              <div class="kpi-icon">📦</div>
+              <div class="kpi-val" id="kpi-products">-</div>
+              <div class="kpi-label">Yüklü Ürün</div>
+            </div>
+            <div class="card">
+              <div class="kpi-icon">🔗</div>
+              <div class="kpi-val" id="kpi-xmls">-</div>
+              <div class="kpi-label">XML Feed</div>
+            </div>
+            <div class="card">
+              <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--muted)">HIZLI İŞLEMLER</div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <button class="btn btn-ghost btn-sm" onclick="navigate('xml')">+ XML Feed Ekle</button>
+                <button class="btn btn-ghost btn-sm" onclick="navigate('products')">Ürünleri Güncelle</button>
+                <button class="btn btn-ghost btn-sm" onclick="navigate('margins')">Kâr Marjı Ayarla</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- XML FEEDLER -->
+        <div class="page" id="page-xml">
+          <div class="tip">💡 XML feed ekleyerek tedarikçi ürünlerinizi otomatik olarak mağazanıza aktarabilirsiniz.
+          </div>
+          <div class="card" style="margin-bottom:20px">
+            <h3 style="font-size:14px;font-weight:600;margin-bottom:16px">Yeni XML Feed Ekle</h3>
+            <div class="grid grid-3">
+              <div class="form-group" style="margin:0"><label>Feed Adı</label><input id="xf-name"
+                  placeholder="Tedarikçi Adı" /></div>
+              <div class="form-group" style="margin:0"><label>XML URL</label><input id="xf-url"
+                  placeholder="https://tedarikci.com/urunler.xml" /></div>
+              <div class="form-group" style="margin:0"><label>Tedarikçi Adı</label><input id="xf-supplier"
+                  placeholder="Tedarikçi A" /></div>
+            </div>
+            <button class="btn btn-primary" style="margin-top:14px" onclick="addXmlFeed()">+ Feed Ekle</button>
+          </div>
+          <div id="xml-list"></div>
+        </div>
+
+        <!-- ÜRÜNLER -->
+        <div class="page" id="page-products">
+          <div class="search-bar">
+            <input id="prod-search" placeholder="Ürün adı veya barkod ara..." oninput="loadProducts()" />
+            <select id="prod-supplier"
+              style="padding:9px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"
+              onchange="loadProducts()">
+              <option value="">Tüm Tedarikçiler</option>
+            </select>
+            <button class="btn btn-success btn-sm" onclick="savePendingStocks()">💾 Stokları Kaydet</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ürün</th>
+                  <th>Barkod</th>
+                  <th>Tedarikçi</th>
+                  <th>Maliyet</th>
+                  <th>Satış Fiyatı</th>
+                  <th>Marj</th>
+                  <th>Stok</th>
+                </tr>
+              </thead>
+              <tbody id="prod-tbody"></tbody>
+            </table>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px">
+            <span id="prod-info" style="font-size:12px;color:var(--muted)"></span>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" id="prod-prev" onclick="prodPage--; loadProducts()">‹ Önceki</button>
+              <button class="btn btn-ghost btn-sm" id="prod-next" onclick="prodPage++; loadProducts()">Sonraki
+                ›</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- KÂR MARJLARI -->
+        <div class="page" id="page-margins">
+          <div class="tip">💡 Her tedarikçi için farklı kâr marjı belirleyebilirsiniz. Değişiklik anında tüm ürün
+            fiyatlarına yansır.</div>
+          <div id="suppliers-grid" class="grid grid-2"></div>
+        </div>
+
+        <!-- KÂR/ZARAR -->
+        <div class="page" id="page-profitloss">
+          <div class="summary-box" id="pl-summary">
+            <div class="s-item">
+              <div class="s-val" id="pl-products">-</div>
+              <div class="s-label">Ürün Sayısı</div>
+            </div>
+            <div class="s-item">
+              <div class="s-val" id="pl-cost">-</div>
+              <div class="s-label">Toplam Maliyet</div>
+            </div>
+            <div class="s-item">
+              <div class="s-val" id="pl-revenue">-</div>
+              <div class="s-label">Toplam Ciro</div>
+            </div>
+            <div class="s-item">
+              <div class="s-val" id="pl-profit">-</div>
+              <div class="s-label">Potansiyel Kâr</div>
+            </div>
+          </div>
+          <div class="search-bar">
+            <input id="pl-search" placeholder="Ürün ara..." oninput="loadProfitLoss()" />
+            <select id="pl-supplier"
+              style="padding:9px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"
+              onchange="loadProfitLoss()">
+              <option value="">Tüm Tedarikçiler</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ürün</th>
+                  <th>Maliyet</th>
+                  <th>Satış</th>
+                  <th>Kâr/Ürün</th>
+                  <th>Marj %</th>
+                  <th>Stok</th>
+                  <th>Top. Potansiyel Kâr</th>
+                </tr>
+              </thead>
+              <tbody id="pl-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- MAĞAZALAR -->
+        <div class="page" id="page-stores">
+          <div class="section-header">
+            <h2>Mağazalarım</h2>
+            <button class="btn btn-primary" onclick="openStoreModal()">+ Mağaza Ekle</button>
+          </div>
+          <div id="stores-grid" class="grid grid-2"></div>
+        </div>
+
+        <!-- SİPARİŞLER -->
+        <div class="page" id="page-orders">
+          <div class="section-header">
+            <h2>Siparişlerim</h2>
+            <button class="btn btn-ghost" onclick="syncOrders()">🔄 Trendyol'dan Çek</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Sipariş No</th>
+                  <th>Tarih</th>
+                  <th>Durum</th>
+                  <th>Toplam</th>
+                  <th>Net</th>
+                  <th>Tür</th>
+                </tr>
+              </thead>
+              <tbody id="orders-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TRENDYOL AYARLARI -->
+        <div class="page" id="page-settings">
+          <div style="max-width:640px">
+            <div class="tip" style="margin-bottom:20px">
+              ⚙️ Trendyol API bilgilerinizi girerek ürünlerinizi doğrudan mağazanıza yükleyebilirsiniz.
+              Bilgileri Trendyol Partner panelinden alabilirsiniz.
+            </div>
+
+            <!-- API BİLGİLERİ -->
+            <div class="card" style="margin-bottom:16px">
+              <h3 style="font-size:14px;font-weight:700;margin-bottom:4px">🔑 Trendyol API Bilgileri</h3>
+              <p style="font-size:12px;color:var(--muted);margin-bottom:18px">
+                partner.trendyol.com → Hesabım → Mağaza Bilgileri → API Entegrasyon Bilgileri
+              </p>
+              <div class="form-group">
+                <label>Firma / Mağaza Adı</label>
+                <input id="set-name" placeholder="Şirket Adı" />
+              </div>
+              <div class="form-group">
+                <label>Telefon</label>
+                <input id="set-phone" placeholder="05XXXXXXXXX" />
+              </div>
+              <div class="form-group">
+                <label>Supplier ID <span style="color:var(--red)">*</span></label>
+                <input id="set-supplier" placeholder="Trendyol Supplier ID (sayısal)" />
+              </div>
+              <div class="form-group">
+                <label>API Key <span style="color:var(--red)">*</span></label>
+                <input id="set-apikey" placeholder="API Key" />
+              </div>
+              <div class="form-group">
+                <label>API Secret <span style="color:var(--red)">*</span> <span
+                    style="color:var(--muted);font-weight:400">(Mevcut şifreyi korumak için boş bırakın)</span></label>
+                <input id="set-apisecret" type="password" placeholder="API Secret" />
+              </div>
+              <div class="form-group">
+                <label>Varsayılan Kâr Marjı (%)</label>
+                <input id="set-margin" type="number" min="0" max="500" placeholder="20" />
+              </div>
+              <div style="display:flex;gap:10px;margin-top:4px">
+                <button type="button" class="btn btn-primary" onclick="saveProfile()">💾 Kaydet</button>
+              </div>
+            </div>
+
+            <!-- TRENDYOL'A YÜKLE -->
+            <div class="card" style="margin-bottom:16px">
+              <h3 style="font-size:14px;font-weight:700;margin-bottom:4px">⬆️ Trendyol'a Ürün Yükle</h3>
+              <p style="font-size:12px;color:var(--muted);margin-bottom:16px">
+                Veritabanınızdaki stokta olan tüm ürünler Trendyol mağazanıza yüklenecektir.
+              </p>
+              <div id="settings-upload-status" style="font-size:13px;color:var(--muted);margin-bottom:12px"></div>
+              <button type="button" class="btn btn-success" onclick="uploadToTrendyol()" id="btn-trendyol-upload">
+                🚀 Trendyol'a Yükle
+              </button>
+            </div>
+
+            <!-- ŞİFRE DEĞİŞTİR -->
+            <div class="card">
+              <h3 style="font-size:14px;font-weight:700;margin-bottom:16px">🔒 Şifre Değiştir</h3>
+              <div class="form-group">
+                <label>Yeni Şifre <span style="color:var(--muted);font-weight:400">(Değiştirmek istemiyorsanız boş
+                    bırakın)</span></label>
+                <input id="set-password" type="password" placeholder="Yeni şifre" />
+              </div>
+              <button type="button" class="btn btn-ghost" onclick="saveProfile()">🔒 Şifreyi Güncelle</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+
+    </div><!-- /main -->
+  </div><!-- /app -->
+
+  <!-- MAĞAZA MODAL -->
+  <div class="modal-overlay" id="store-modal">
+    <div class="modal">
+      <h2>🏪 Mağaza Ekle / Düzenle</h2>
+      <input type="hidden" id="sm-id" />
+      <div class="form-group"><label>Mağaza Adı</label><input id="sm-name" placeholder="Mağaza Adı" /></div>
+      <div class="form-group"><label>Supplier ID</label><input id="sm-supplier" placeholder="Trendyol Supplier ID" />
+      </div>
+      <div class="form-group"><label>API Key</label><input id="sm-apikey" placeholder="API Key" /></div>
+      <div class="form-group"><label>API Secret</label><input id="sm-apisecret" placeholder="API Secret"
+          type="password" /></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('store-modal')">İptal</button>
+        <button class="btn btn-primary" onclick="saveStore()">Kaydet</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    // Eğer Live Server (örn: 5500) üzerinden açıldıysa veya doğrudan dosyadan açıldıysa, istekleri 3000'e yönlendir.
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const API = (window.location.protocol === 'file:' || (isLocalhost && window.location.port !== '3000')) ? 'http://localhost:3000' : '';
+    let TOKEN = localStorage.getItem('dealer_token') || '';
+    let DEALER = JSON.parse(localStorage.getItem('dealer_info') || 'null');
+    let prodPage = 1;
+    let pendingStocks = {};
+
+    // ─── AUTH ───
+    async function doLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const pass = document.getElementById('login-pass').value;
+      if (!email || !pass) return toast('Email ve şifre girin', 'error');
+      const btn = document.getElementById('login-btn');
+      btn.textContent = 'Giriş yapılıyor...'; btn.disabled = true;
+      try {
+        const reqUrl = API + '/api/auth/login';
+        const r = await fetch(reqUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pass }) });
+        const text = await r.text();
+        let d;
+        try {
+          d = text ? JSON.parse(text) : {};
+        } catch(err) {
+          throw new Error('Sunucudan geçersiz yanıt geldi, JSON değil: ' + text.substring(0, 100));
+        }
+
+        if (!r.ok) throw new Error(d.error || 'Giriş hatası (' + r.status + ')');
+        TOKEN = d.token; DEALER = d.dealer;
+        localStorage.setItem('dealer_token', TOKEN);
+        localStorage.setItem('dealer_info', JSON.stringify(DEALER));
+        initApp();
+      } catch (e) {
+        if (e.message === 'Failed to fetch') {
+          toast('Sunucuya bağlanılamadı. Lütfen "node server.js" komutunun çalıştığından emin olun.', 'error');
+        } else {
+          toast(e.message, 'error');
+        }
+      }
+      btn.textContent = 'Giriş Yap'; btn.disabled = false;
+    }
+
+    function logout() {
+      TOKEN = ''; DEALER = null;
+      localStorage.removeItem('dealer_token');
+      localStorage.removeItem('dealer_info');
+      document.getElementById('login-page').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}`, ...(opts.headers || {}) }
+      });
+      if (res.status === 401) { logout(); return null; }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Sunucu hatası');
+      return data;
+    }
+
+    // ─── INIT ───
+    function initApp() {
+      document.getElementById('login-page').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      if (DEALER) {
+        document.getElementById('dealer-name').textContent = DEALER.name;
+        document.getElementById('dealer-email').textContent = DEALER.email;
+        document.getElementById('dealer-avatar').textContent = (DEALER.name || 'B')[0].toUpperCase();
+      }
+
+      // Güvence için manuel EventListener ekleyelim
+      const upBtn = document.getElementById('btn-trendyol-upload');
+      if (upBtn) {
+        upBtn.onclick = function(e) {
+          e.preventDefault();
+          uploadToTrendyol();
+        };
+      }
+
+      navigate('dashboard');
+      loadSupplierFilters();
+    }
+
+    function navigate(page) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('page-' + page)?.classList.add('active');
+      document.getElementById('nav-' + page)?.classList.add('active');
+      const titles = { dashboard: 'Dashboard', xml: 'XML Feedler', products: 'Ürünlerim', margins: 'Kâr Marjları', profitloss: 'Kâr / Zarar Analizi', stores: 'Mağazalarım', orders: 'Siparişler', settings: 'Trendyol Ayarları' };
+      document.getElementById('page-title').textContent = titles[page] || page;
+      if (page === 'dashboard') loadDashboard();
+      if (page === 'xml') loadXmlFeeds();
+      if (page === 'products') { prodPage = 1; loadProducts(); }
+      if (page === 'margins') loadMargins();
+      if (page === 'profitloss') loadProfitLoss();
+      if (page === 'stores') loadStores();
+      if (page === 'orders') loadOrders();
+      if (page === 'settings') loadSettings();
+    }
+
+    // ─── SETTINGS ───
+    async function loadSettings() {
+      try {
+        const d = await api('/api/auth/me');
+        if (!d) return;
+        document.getElementById('set-name').value = d.name || '';
+        document.getElementById('set-phone').value = d.phone || '';
+        document.getElementById('set-supplier').value = d.supplier_id || '';
+        document.getElementById('set-apikey').value = d.api_key || '';
+        document.getElementById('set-margin').value = d.profit_margin || 20;
+        document.getElementById('set-apisecret').value = '';
+        document.getElementById('set-password').value = '';
+        // Upload status
+        const statusEl = document.getElementById('settings-upload-status');
+        const hasApi = d.supplier_id && d.api_key;
+        statusEl.innerHTML = hasApi
+          ? `<span style="color:var(--green)">✅ API bilgileri mevcut. Supplier ID: <strong>${d.supplier_id}</strong></span>`
+          : `<span style="color:var(--red)">⚠️ API bilgileri eksik. Lütfen Supplier ID, API Key ve API Secret girin.</span>`;
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function saveProfile() {
+      const body = {
+        name: document.getElementById('set-name').value,
+        phone: document.getElementById('set-phone').value,
+        supplier_id: document.getElementById('set-supplier').value,
+        api_key: document.getElementById('set-apikey').value,
+        api_secret: document.getElementById('set-apisecret').value,
+        profit_margin: parseFloat(document.getElementById('set-margin').value) || 20,
+        password: document.getElementById('set-password').value,
+      };
+      try {
+        await api('/api/dealer/profile', { method: 'PUT', body: JSON.stringify(body) });
+        toast('✅ Profil kaydedildi!', 'success');
+        loadSettings();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function uploadToTrendyol() {
+      alert("Button clicked!");
+      console.log("Upload started");
+      const btn = document.getElementById('btn-trendyol-upload');
+      const statusEl = document.getElementById('settings-upload-status');
+      if (!btn || !statusEl) { alert('Elements not found!'); return; }
+      btn.textContent = '⏳ Yükleniyor...'; btn.disabled = true;
+      statusEl.innerHTML = `<span style="color:var(--accent)">⏳ Trendyol'a gönderiliyor, lütfen bekleyin...</span>`;
+      try {
+        console.log("Sending API request to /api/dealer/trendyol-upload");
+        const reqRes = await api('/api/dealer/trendyol-upload', { method: 'POST', body: JSON.stringify({}) });
+        console.log("API response arrived:", reqRes);
+        
+        // Logları canlı izle (90 saniye boyunca 3s'de bir kontrol et)
+        let lastId = 0;
+        let attempts = 0;
+        const maxAttempts = 30;
+        const logLines = [];
+        
+        const poller = setInterval(async () => {
+          attempts++;
+          try {
+            const logs = await api('/api/dealer/logs');
+            if (!logs) return;
+            const newLogs = logs.filter(l => l.id > lastId).reverse();
+            if (newLogs.length) {
+              lastId = newLogs[newLogs.length - 1].id;
+              newLogs.forEach(l => {
+                const color = l.level === 'error' ? 'var(--red)' : l.level === 'success' ? 'var(--green)' : 'var(--accent)';
+                const icon = l.level === 'error' ? '❌' : l.level === 'success' ? '✅' : 'ℹ️';
+                const time = new Date(l.created_at + 'Z').toLocaleTimeString('tr');
+                logLines.unshift(`<div style="padding:4px 0;border-bottom:1px solid #222;font-size:12px"><span style="color:${color}">${icon} [${time}] ${esc(l.message)}</span></div>`);
+              });
+              statusEl.innerHTML = `<div style="max-height:200px;overflow-y:auto;background:#1a1a2e;border-radius:8px;padding:8px;margin-top:8px">${logLines.slice(0,20).join('')}</div>`;
+            }
+            // Yükleme tamamlandı mı?
+            if (newLogs.some(l => l.message.includes('yükleme tamamlandı'))) {
+              clearInterval(poller);
+              btn.textContent = '🚀 Trendyol\'a Yükle'; btn.disabled = false;
+              toast('✅ Trendyol yükleme tamamlandı!', 'success');
+            }
+          } catch (ex) {
+            console.error('Log fetch error:', ex);
+          }
+          if (attempts >= maxAttempts) {
+            clearInterval(poller);
+            btn.textContent = '🚀 Trendyol\'a Yükle'; btn.disabled = false;
+          }
+        }, 3000);
+        
+      } catch (e) {
+        toast('❌ Hata: ' + e.message, 'error');
+        btn.textContent = '🚀 Trendyol\'a Yükle'; btn.disabled = false;
+      }
+    }
+
+    // ─── DASHBOARD ───
+    async function loadDashboard() {
+      try {
+        const d = await api('/api/dealer/dashboard');
+        if (!d) return;
+        document.getElementById('kpi-orders').textContent = d.totalOrders.toLocaleString('tr');
+        document.getElementById('kpi-revenue').textContent = '₺' + d.netRevenue.toLocaleString('tr', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        document.getElementById('kpi-refunds').textContent = d.totalRefunds.toLocaleString('tr');
+        document.getElementById('kpi-stores').textContent = d.storeCount.toLocaleString('tr');
+        document.getElementById('kpi-products').textContent = d.productCount.toLocaleString('tr');
+        document.getElementById('kpi-xmls').textContent = d.xmlCount.toLocaleString('tr');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    // ─── XML FEEDS ───
+    async function loadXmlFeeds() {
+      try {
+        const feeds = await api('/api/dealer/xml-feeds');
+        if (!feeds) return;
+        const el = document.getElementById('xml-list');
+        if (!feeds.length) { el.innerHTML = '<div class="empty-state"><div class="emoji">🔗</div><p>Henüz XML feed eklenmemiş</p></div>'; return; }
+        el.innerHTML = feeds.map(f => `
+      <div class="card" style="margin-bottom:12px;display:flex;align-items:center;gap:16px">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">${esc(f.name)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px">${esc(f.url)}</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="badge badge-blue">${esc(f.supplier_name)}</span>
+            <span class="badge badge-green">${f.product_count} ürün</span>
+            ${f.last_imported ? `<span style="font-size:11px;color:var(--muted)">Son: ${new Date(f.last_imported).toLocaleDateString('tr')}</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-success btn-sm" onclick="importXml(${f.id}, this)">⬇️ İçe Aktar</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteXmlFeed(${f.id})">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function addXmlFeed() {
+      const url = document.getElementById('xf-url').value.trim();
+      const name = document.getElementById('xf-name').value.trim() || url;
+      const supplier = document.getElementById('xf-supplier').value.trim() || 'Genel';
+      if (!url) return toast('URL gerekli', 'error');
+      try {
+        await api('/api/dealer/xml-feeds', { method: 'POST', body: JSON.stringify({ url, name, supplier_name: supplier }) });
+        toast('Feed eklendi!', 'success');
+        document.getElementById('xf-url').value = '';
+        document.getElementById('xf-name').value = '';
+        document.getElementById('xf-supplier').value = '';
+        loadXmlFeeds(); loadSupplierFilters();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function importXml(id, btn) {
+      btn.textContent = '⏳ İçe Aktarılıyor...'; btn.disabled = true;
+      try {
+        const r = await api(`/api/dealer/xml-feeds/${id}/import`, { method: 'POST' });
+        toast(`✅ ${r.count} ürün içe aktarıldı (Marj: %${r.margin})`, 'success');
+        loadXmlFeeds(); loadSupplierFilters();
+      } catch (e) { toast('Hata: ' + e.message, 'error'); }
+      btn.textContent = '⬇️ İçe Aktar'; btn.disabled = false;
+    }
+
+    async function deleteXmlFeed(id) {
+      if (!confirm('Bu XML feed silinsin mi?')) return;
+      await api(`/api/dealer/xml-feeds/${id}`, { method: 'DELETE' });
+      toast('Feed silindi', 'info'); loadXmlFeeds();
+    }
+
+    // ─── ÜRÜNLER ───
+    async function loadProducts() {
+      const search = document.getElementById('prod-search').value;
+      const supplier = document.getElementById('prod-supplier').value;
+      try {
+        const d = await api(`/api/dealer/products?page=${prodPage}&limit=50&search=${encodeURIComponent(search)}&supplier=${encodeURIComponent(supplier)}`);
+        if (!d) return;
+        const tbody = document.getElementById('prod-tbody');
+        if (!d.products.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">Ürün bulunamadı</td></tr>'; return; }
+        tbody.innerHTML = d.products.map(p => {
+          const margin = p.cost_price > 0 ? ((p.sale_price - p.cost_price) / p.cost_price * 100).toFixed(1) : 0;
+          const stockCls = p.stock === 0 ? 'badge-red' : p.stock < 5 ? 'badge-yellow' : 'badge-green';
+          return `<tr>
+        <td><div style="font-weight:500;font-size:13px">${esc(p.title?.substring(0, 60))}${p.title?.length > 60 ? '...' : ''}</div></td>
+        <td><code style="font-size:11px;color:var(--muted)">${esc(p.barcode)}</code></td>
+        <td><span class="badge badge-blue">${esc(p.supplier_name)}</span></td>
+        <td>₺${p.cost_price?.toFixed(2)}</td>
+        <td style="font-weight:600;color:var(--green)">₺${p.sale_price?.toFixed(2)}</td>
+        <td><span class="badge ${margin > 0 ? 'badge-green' : 'badge-red'}">%${margin}</span></td>
+        <td><input class="stock-input" type="number" value="${p.stock}" min="0" data-barcode="${esc(p.barcode)}" onchange="pendingStocks['${esc(p.barcode)}'] = parseInt(this.value)"/></td>
+      </tr>`;
+        }).join('');
+        document.getElementById('prod-info').textContent = `Toplam ${d.total} ürün | Sayfa ${d.page}/${d.totalPages}`;
+        document.getElementById('prod-prev').disabled = d.page <= 1;
+        document.getElementById('prod-next').disabled = d.page >= d.totalPages;
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function savePendingStocks() {
+      const items = Object.entries(pendingStocks).map(([barcode, stock]) => ({ barcode, stock }));
+      if (!items.length) return toast('Değiştirilecek stok yok', 'info');
+      try {
+        await api('/api/dealer/products/bulk-stock', { method: 'POST', body: JSON.stringify(items) });
+        pendingStocks = {};
+        toast(`${items.length} ürün stoğu güncellendi`, 'success');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    // ─── KÂR MARJLARI ───
+    async function loadMargins() {
+      try {
+        const suppliers = await api('/api/dealer/suppliers');
+        if (!suppliers) return;
+        const el = document.getElementById('suppliers-grid');
+        if (!suppliers.length) { el.innerHTML = '<div class="empty-state"><div class="emoji">📦</div><p>Henüz ürün yüklenmemiş</p></div>'; return; }
+        el.innerHTML = suppliers.map(s => `
+      <div class="supplier-card">
+        <div class="supplier-icon">🏭</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px;margin-bottom:2px">${esc(s.supplier_name)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${s.product_count} ürün</div>
+          <div class="range-wrap">
+            <input type="range" min="0" max="200" value="${s.margin}" 
+              oninput="this.nextElementSibling.textContent='%'+this.value"
+              onchange="updateMargin('${esc(s.supplier_name)}', this.value, this)"/>
+            <div class="range-val">%${s.margin}</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function updateMargin(supplierName, margin, el) {
+      try {
+        const r = await api(`/api/dealer/suppliers/${encodeURIComponent(supplierName)}/margin`, { method: 'PATCH', body: JSON.stringify({ margin: parseFloat(margin) }) });
+        toast(`${supplierName}: Marj %${margin} yapıldı (${r.updated} ürün güncellendi)`, 'success');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    // ─── KÂR / ZARAR ───
+    async function loadProfitLoss() {
+      const search = document.getElementById('pl-search').value;
+      const supplier = document.getElementById('pl-supplier').value;
+      try {
+        const d = await api(`/api/dealer/profit-loss?search=${encodeURIComponent(search)}&supplier=${encodeURIComponent(supplier)}`);
+        if (!d) return;
+        const s = d.summary;
+        document.getElementById('pl-products').textContent = s.total_products || 0;
+        document.getElementById('pl-cost').textContent = '₺' + (s.total_cost || 0).toLocaleString('tr', { maximumFractionDigits: 0 });
+        document.getElementById('pl-revenue').textContent = '₺' + (s.total_revenue || 0).toLocaleString('tr', { maximumFractionDigits: 0 });
+        document.getElementById('pl-profit').textContent = '₺' + (s.total_profit || 0).toLocaleString('tr', { maximumFractionDigits: 0 });
+        document.getElementById('pl-profit').style.color = s.total_profit >= 0 ? 'var(--green)' : 'var(--red)';
+
+        const tbody = document.getElementById('pl-tbody');
+        tbody.innerHTML = d.products.map(p => {
+          const profitCls = p.profit_per_unit >= 0 ? 'badge-green' : 'badge-red';
+          const mrgCls = p.margin_pct >= 0 ? 'badge-green' : 'badge-red';
+          return `<tr>
+        <td><div style="font-weight:500;font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.title)}</div><div style="font-size:10px;color:var(--muted)">${esc(p.supplier_name)}</div></td>
+        <td>₺${p.cost_price?.toFixed(2)}</td>
+        <td style="color:var(--green);font-weight:600">₺${p.sale_price?.toFixed(2)}</td>
+        <td><span class="badge ${profitCls}">₺${p.profit_per_unit?.toFixed(2)}</span></td>
+        <td><span class="badge ${mrgCls}">%${p.margin_pct}</span></td>
+        <td>${p.stock}</td>
+        <td style="font-weight:700;color:${p.total_potential_profit >= 0 ? 'var(--green)' : 'var(--red)'}">₺${(p.total_potential_profit || 0).toLocaleString('tr', { maximumFractionDigits: 0 })}</td>
+      </tr>`;
+        }).join('');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    // ─── MAĞAZALAR ───
+    async function loadStores() {
+      try {
+        const stores = await api('/api/dealer/stores');
+        if (!stores) return;
+        const el = document.getElementById('stores-grid');
+        if (!stores.length) { el.innerHTML = '<div class="empty-state"><div class="emoji">🏪</div><p>Henüz mağaza eklenmemiş</p></div>'; return; }
+        el.innerHTML = stores.map(s => `
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:16px;font-weight:700">${esc(s.name)}</div>
+          <span class="badge ${s.status === 'active' ? 'badge-green' : 'badge-red'}">${s.status === 'active' ? 'Aktif' : 'Pasif'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Supplier ID: <strong>${esc(s.supplier_id) || 'Belirtilmemiş'}</strong></div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn btn-ghost btn-sm" onclick="openStoreModal(${JSON.stringify(s).replace(/"/g, '&quot;')})">✏️ Düzenle</button>
+          <button class="btn btn-success btn-sm" onclick="uploadToStore(${s.id})">⬆️ Trendyol'a Yükle</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteStore(${s.id})">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    function openStoreModal(s = null) {
+      document.getElementById('sm-id').value = s?.id || '';
+      document.getElementById('sm-name').value = s?.name || '';
+      document.getElementById('sm-supplier').value = s?.supplier_id || '';
+      document.getElementById('sm-apikey').value = s?.api_key || '';
+      document.getElementById('sm-apisecret').value = '';
+      document.getElementById('store-modal').classList.add('show');
+    }
+
+    async function saveStore() {
+      const body = {
+        id: document.getElementById('sm-id').value || undefined,
+        name: document.getElementById('sm-name').value,
+        supplier_id: document.getElementById('sm-supplier').value,
+        api_key: document.getElementById('sm-apikey').value,
+        api_secret: document.getElementById('sm-apisecret').value,
+      };
+      try {
+        await api('/api/dealer/stores', { method: 'POST', body: JSON.stringify(body) });
+        toast('Mağaza kaydedildi', 'success');
+        closeModal('store-modal'); loadStores();
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function deleteStore(id) {
+      if (!confirm('Mağaza silinsin mi?')) return;
+      await api(`/api/dealer/stores/${id}`, { method: 'DELETE' });
+      toast('Mağaza silindi', 'info'); loadStores();
+    }
+
+    async function uploadToStore(storeId) {
+      try {
+        await api('/api/dealer/trendyol-upload', { method: 'POST', body: JSON.stringify({ store_id: storeId }) });
+        toast('Ürün yükleme başlatıldı! Arka planda devam ediyor.', 'success');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    // ─── SİPARİŞLER ───
+    async function loadOrders() {
+      try {
+        const d = await api('/api/dealer/orders?limit=50');
+        if (!d) return;
+        const tbody = document.getElementById('orders-tbody');
+        if (!d.orders.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Sipariş bulunamadı. Trendyol\'dan çekmeyi deneyin.</td></tr>'; return; }
+        tbody.innerHTML = d.orders.map(o => `<tr>
+      <td style="font-weight:600">${esc(o.order_number)}</td>
+      <td>${o.order_date ? new Date(o.order_date).toLocaleDateString('tr') : '-'}</td>
+      <td><span class="badge badge-blue">${esc(o.status)}</span></td>
+      <td>₺${(o.total_price || 0).toFixed(2)}</td>
+      <td style="color:var(--green);font-weight:600">₺${(o.net_price || 0).toFixed(2)}</td>
+      <td><span class="badge ${o.is_refund ? 'badge-red' : 'badge-green'}">${o.is_refund ? 'İade' : 'Satış'}</span></td>
+    </tr>`).join('');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function syncOrders() {
+      try {
+        const r = await api('/api/dealer/orders/sync', { method: 'POST', body: JSON.stringify({}) });
+        toast(`${r.synced} sipariş senkronize edildi`, 'success'); loadOrders();
+      } catch (e) { toast('Hata: ' + e.message, 'error'); }
+    }
+
+    // ─── HELPERS ───
+    async function loadSupplierFilters() {
+      try {
+        const suppliers = await api('/api/dealer/suppliers');
+        if (!suppliers) return;
+        ['prod-supplier', 'pl-supplier'].forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const val = el.value;
+          el.innerHTML = '<option value="">Tüm Tedarikçiler</option>' +
+            suppliers.map(s => `<option value="${esc(s.supplier_name)}">${esc(s.supplier_name)} (${s.product_count})</option>`).join('');
+          el.value = val;
+        });
+      } catch (e) { }
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function toast(msg, type = 'info') {
+      const t = document.getElementById('toast');
+      const d = document.createElement('div');
+      d.className = `toast-item toast-${type}`; d.textContent = msg;
+      t.appendChild(d);
+      setTimeout(() => d.remove(), 3500);
+    }
+
+    // ─── ROUTE ───
+    window.addEventListener('DOMContentLoaded', () => {
+      if (TOKEN && DEALER) { initApp(); } else {
+        document.getElementById('login-page').style.display = 'flex';
+      }
+    });
+  </script>
+</body>
+
+</html>

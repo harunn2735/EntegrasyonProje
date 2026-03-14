@@ -1,0 +1,33 @@
+https://apigw.trendyol.com/integration/product/sellers/1018476/products/batch-requests/d61880db-d187-453d-a08e-3f2f45e64caa-1772286959
+STATUS: 200
+{
+  "batchRequestId": "d61880db-d187-453d-a08e-3f2f45e64caa-1772286959",
+  "items": [
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8680000000001",
+          "title": "Test Urun",
+          "productMainId": "TEST-001",
+          "brandId": 104956,
+          "categoryId": 3870,
+          "quantity": 5,
+          "stockCode": "TEST-001",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "description": "Test urun aciklamasi",
+          "c
+
+https://apigw.trendyol.com/integration/product/sellers/1018476/v2/products/batch-requests/d61880db-d187-453d-a08e-3f2f45e64caa-1772286959
+ERROR: 404 {"path":"/sellers/1018476/v2/products/batch-requests/d61880db-d187-453d-a08e-3f2f45e64caa-1772286959","exception":"TrendyolNotFoundException","traceId":"c0655ec7cc264a18b877e8825edfc660","timestamp":1772201312807,"errors":[{"key":"cannot.error","errorCode":"NOT_FOUND","message":"İşlem başarısız oldu
+
+https://apigw.trendyol.com/integration/product/sellers/1018476/products?barcode=8945254224869
+STATUS: 200
+{
+  "page": 0,
+  "size": 20,
+  "totalElements": 0,
+  "totalPages": 0,
+  "content": []
+}
+

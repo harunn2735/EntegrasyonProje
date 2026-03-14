@@ -1,0 +1,14 @@
+ERROR: 404
+{
+  "path": "/sellers/1018476/products/batch-requests",
+  "exception": "TrendyolNotFoundException",
+  "traceId": "ab44bc991ffd4040b043d87edcc3cc53",
+  "timestamp": 1772201283884,
+  "errors": [
+    {
+      "key": "cannot.error",
+      "errorCode": "NOT_FOUND",
+      "message": "İşlem başarısız oldu"
+    }
+  ]
+}

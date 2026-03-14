@@ -1,0 +1,85 @@
+=== MARKA (Diğer) ===
+[
+  {
+    "id": 2897958,
+    "name": "DİĞER1111"
+  },
+  {
+    "id": 2781147,
+    "name": "diğer588"
+  },
+  {
+    "id": 1227393,
+    "name": "Diğerdeha"
+  },
+  {
+    "id": 2790890,
+    "name": "diğeraass"
+  },
+  {
+    "id": 2757111,
+    "name": "Digerati Distribution"
+  }
+]
+
+=== KATEGORİ 3870 ZORUNLU ÖZELLİKLER ===
+[
+  {
+    "id": 1192,
+    "name": "Menşei",
+    "values": [
+      {
+        "id": 10633877,
+        "name": "UM"
+      },
+      {
+        "id": 10633876,
+        "name": "KP"
+      },
+      {
+        "id": 10633875,
+        "name": "WF"
+      },
+      {
+        "id": 10633874,
+        "name": "TK"
+      },
+      {
+        "id": 10633873,
+        "name": "PN"
+      }
+    ]
+  },
+  {
+    "id": 47,
+    "name": "Renk",
+    "values": []
+  },
+  {
+    "id": 348,
+    "name": "Web Color",
+    "values": [
+      {
+        "id": 686230,
+        "name": "Çok Renkli"
+      },
+      {
+        "id": 7015,
+        "name": "Haki"
+      },
+      {
+        "id": 7014,
+        "name": "Ekru"
+      },
+      {
+        "id": 7013,
+        "name": "Bordo"
+      },
+      {
+        "id": 7012,
+        "name": "Yeşil"
+      }
+    ]
+  }
+]
+

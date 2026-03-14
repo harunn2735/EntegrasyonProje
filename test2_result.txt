@@ -1,0 +1,69 @@
+Batch ID: 66801ebb-724d-4612-9a47-0fec692847f2-1772288472
+{
+  "batchRequestId": "66801ebb-724d-4612-9a47-0fec692847f2-1772288472",
+  "items": [
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254224869",
+          "title": "10 Adet Soguk Sicak Jel Kompres Termojel 13x13 Cm",
+          "productMainId": "8945254224869",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 5,
+          "stockCode": "8945254224869",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "description": "10 Adet Soguk Sicak Jel Kompres Termojel 13x13 Cm",
+          "currencyType": "-",
+          "listPrice": 128.39,
+          "salePrice": 128.39,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://cdn.dsmcdn.com/ty1/product/media/images/20200812/11/7798319/11111/1_1_org.jpg"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": null,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": null,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": null,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254224869"
+      },
+      "status": "FAILED",
+      "failureReasons": [
+        "Kategori özellik değeri geçerli değildir. Kategori Id: 3870, Özellik id: 1192, Özellik Adı: Menşei",
+        "Kategori özellik değeri geçerli değildir. Kategori Id: 3870, Özellik id: 47, Özellik Adı: Renk",
+        "Kategori özellik değeri geçerli değildir. Kategori Id: 3870, Özellik id: 348, Özellik Adı: Web Color"
+      ]
+    }
+  ],
+  "status": "COMPLETED",
+  "creationDate": 1772202072497,
+  "lastModification": 1772202073831,
+  "sourceType": "API",
+  "itemCount": 1,
+  "failedItemCount": 1,
+  "batchRequestType": "ProductV2OnBoarding",
+  "notes": null,
+  "objectKey": null,
+  "storeFrontCode": null
+}

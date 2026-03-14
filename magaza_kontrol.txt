@@ -1,0 +1,11 @@
+Magazadaki toplam urun: 38753
+
+Barkod 8945254316243 sonuc: 1 urun
+Urun: {
+  "title": "Kablosuz PS4 Oyun Kolu Test",
+  "barcode": "8945254316243",
+  "approved": false,
+  "onSale": false
+}
+
+Barkod 8945254224869 sonuc: 1 urun

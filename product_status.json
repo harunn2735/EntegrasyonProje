@@ -1,0 +1,339 @@
+[
+  {
+    "approved": false,
+    "archived": false,
+    "attributes": [
+      {
+        "attributeId": 1192,
+        "attributeName": "Menşei",
+        "attributeValue": "TK",
+        "attributeValueId": 10633874
+      },
+      {
+        "attributeId": 348,
+        "attributeName": "Web Color",
+        "attributeValue": "Çok Renkli",
+        "attributeValueId": 686230
+      },
+      {
+        "attributeId": 47,
+        "attributeName": "Renk",
+        "attributeValue": "Çok Renkli"
+      }
+    ],
+    "barcode": "8945254177295",
+    "batchRequestId": "c3bcef17-ed4b-43aa-bbb8-c1eeaf6a6905-1773502567",
+    "brand": "Eco Lounge",
+    "brandId": 2613880,
+    "categoryName": "Faks Kağıdı",
+    "createDateTime": 1773416167966,
+    "description": "5'li Eco Banyo Seti Çöp Kovası Tuvalet Fırçası Sabunluk Diş Fırçalık 5 Parça Siyah Çizgili Yuvarlak",
+    "dimensionalWeight": 1,
+    "hasActiveCampaign": false,
+    "id": "1ac5c97a8c9288b57cd7cda2a19284a4",
+    "images": [
+      {
+        "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/5-li-eco-banyo-seti-cop-kovasi-tuvalet-fircasi-sabunluk-dis-fircalik-5-parca-siyah-cizgili-yuvarlak-60262775-sw1024sh1536.webp"
+      }
+    ],
+    "lastPriceChangeDate": "2026-03-13T15:36:08.643+00:00",
+    "lastStockChangeDate": "2026-03-13T15:36:08.643+00:00",
+    "lastUpdateDate": 1773416939357,
+    "listPrice": 253,
+    "locked": false,
+    "onSale": false,
+    "pimCategoryId": 3870,
+    "productMainId": "8945254177295",
+    "quantity": 4976,
+    "salePrice": 253,
+    "stockCode": "8945254177295",
+    "stockUnitType": "Adet",
+    "supplierId": 1018476,
+    "title": "5'li Eco Banyo Seti Çöp Kovası Tuvalet Fırçası Sabunluk Diş Fırçalık 5 Parça Siyah Çizgili Yuvarlak",
+    "vatRate": 20,
+    "version": 2,
+    "rejected": true,
+    "rejectReasonDetails": [
+      {
+        "rejectReason": "Yasaklı Kelime",
+        "rejectReasonDetail": "Ürün ismi ya da açıklamasında; \"cop,cop\" yasaklı kelimesi kullanılmıştır. Lütfen ürün ve içeriğinizin yayına uygunluğunu kontrol ediniz. Platform kurallarını görmek için lütfen tıklayınız."
+      }
+    ],
+    "blacklisted": false,
+    "productUrl": null,
+    "locationBasedDelivery": "DISABLED",
+    "deliveryOption": null
+  },
+  {
+    "approved": false,
+    "archived": false,
+    "attributes": [
+      {
+        "attributeId": 1192,
+        "attributeName": "Menşei",
+        "attributeValue": "TK",
+        "attributeValueId": 10633874
+      },
+      {
+        "attributeId": 348,
+        "attributeName": "Web Color",
+        "attributeValue": "Çok Renkli",
+        "attributeValueId": 686230
+      },
+      {
+        "attributeId": 47,
+        "attributeName": "Renk",
+        "attributeValue": "Çok Renkli"
+      }
+    ],
+    "barcode": "8945254168781",
+    "batchRequestId": "c3bcef17-ed4b-43aa-bbb8-c1eeaf6a6905-1773502567",
+    "brand": "Eco Lounge",
+    "brandId": 2613880,
+    "categoryName": "Faks Kağıdı",
+    "createDateTime": 1773416168711,
+    "description": "20L Akıllı Sensörlü Çöp Kovası UV Işık Koku Geçirmez Mutfak Banyo Ofis İçin",
+    "dimensionalWeight": 1,
+    "hasActiveCampaign": false,
+    "id": "9949e01b3fdd96b3bafe15547b15abf5",
+    "images": [
+      {
+        "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-ofis-icin-069341388-sw1200sh1800.webp"
+      },
+      {
+        "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-ofis-icin-187147589-sw1200sh1800.webp"
+      },
+      {
+        "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-ofis-icin-225713226-sw1200sh1800.webp"
+      }
+    ],
+    "lastPriceChangeDate": "2026-03-13T15:36:09.668+00:00",
+    "lastStockChangeDate": "2026-03-13T15:36:09.668+00:00",
+    "lastUpdateDate": 1773416940602,
+    "listPrice": 759,
+    "locked": false,
+    "onSale": false,
+    "pimCategoryId": 3870,
+    "productMainId": "8945254168781",
+    "quantity": 4967,
+    "salePrice": 759,
+    "stockCode": "8945254168781",
+    "stockUnitType": "Adet",
+    "supplierId": 1018476,
+    "title": "20L Akıllı Sensörlü Çöp Kovası UV Işık Koku Geçirmez Mutfak Banyo Ofis İçin",
+    "vatRate": 20,
+    "version": 2,
+    "rejected": true,
+    "rejectReasonDetails": [
+      {
+        "rejectReason": "Yasaklı Kelime",
+        "rejectReasonDetail": "Ürün ismi ya da açıklamasında; \"cop,cop\" yasaklı kelimesi kullanılmıştır. Lütfen ürün ve içeriğinizin yayına uygunluğunu kontrol ediniz. Platform kurallarını görmek için lütfen tıklayınız."
+      }
+    ],
+    "blacklisted": false,
+    "productUrl": null,
+    "locationBasedDelivery": "DISABLED",
+    "deliveryOption": null
+  },
+  {
+    "approved": false,
+    "archived": false,
+    "attributes": [
+      {
+        "attributeId": 1192,
+        "attributeName": "Menşei",
+        "attributeValue": "TK",
+        "attributeValueId": 10633874
+      },
+      {
+        "attributeId": 348,
+        "attributeName": "Web Color",
+        "attributeValue": "Çok Renkli",
+        "attributeValueId": 686230
+      },
+      {
+        "attributeId": 47,
+        "attributeName": "Renk",
+        "attributeValue": "Çok Renkli"
+      }
+    ],
+    "barcode": "8945254360352",
+    "batchRequestId": "c3bcef17-ed4b-43aa-bbb8-c1eeaf6a6905-1773502567",
+    "brand": "Eco Lounge",
+    "brandId": 2613880,
+    "categoryName": "Faks Kağıdı",
+    "createDateTime": 1773416167847,
+    "description": "Siyah 5’li Banyo Seti – Çöp Kovası, Tuvalet Fırçası, Sabunluk ve Aksesuarlar",
+    "dimensionalWeight": 1,
+    "hasActiveCampaign": false,
+    "id": "6a19ca3c776f5e8ec57b3c0672bacc62",
+    "images": [
+      {
+        "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/69150ab5989c0-3832845-sw1024sh1536.webp"
+      }
+    ],
+    "lastPriceChangeDate": "2026-03-13T15:36:08.665+00:00",
+    "lastStockChangeDate": "2026-03-13T15:36:08.665+00:00",
+    "lastUpdateDate": 1773416941604,
+    "listPrice": 253,
+    "locked": false,
+    "onSale": false,
+    "pimCategoryId": 3870,
+    "productMainId": "8945254360352",
+    "quantity": 4977,
+    "salePrice": 253,
+    "stockCode": "8945254360352",
+    "stockUnitType": "Adet",
+    "supplierId": 1018476,
+    "title": "Siyah 5’li Banyo Seti – Çöp Kovası, Tuvalet Fırçası, Sabunluk ve Aksesuarlar",
+    "vatRate": 20,
+    "version": 2,
+    "rejected": true,
+    "rejectReasonDetails": [
+      {
+        "rejectReason": "Yasaklı Kelime",
+        "rejectReasonDetail": "Ürün ismi ya da açıklamasında; \"cop,cop\" yasaklı kelimesi kullanılmıştır. Lütfen ürün ve içeriğinizin yayına uygunluğunu kontrol ediniz. Platform kurallarını görmek için lütfen tıklayınız."
+      }
+    ],
+    "blacklisted": false,
+    "productUrl": null,
+    "locationBasedDelivery": "DISABLED",
+    "deliveryOption": null
+  },
+  {
+    "approved": false,
+    "archived": false,
+    "attributes": [
+      {
+        "attributeId": 1192,
+        "attributeName": "Menşei",
+        "attributeValue": "TK",
+        "attributeValueId": 10633874
+      },
+      {
+        "attributeId": 348,
+        "attributeName": "Web Color",
+        "attributeValue": "Çok Renkli",
+        "attributeValueId": 686230
+      },
+      {
+        "attributeId": 47,
+        "attributeName": "Renk",
+        "attributeValue": "Çok Renkli"
+      }
+    ],
+    "barcode": "8945254348824",
+    "batchRequestId": "c3bcef17-ed4b-43aa-bbb8-c1eeaf6a6905-1773502567",
+    "brand": "Eco Lounge",
+    "brandId": 2613880,
+    "categoryName": "Faks Kağıdı",
+    "createDateTime": 1773416168601,
+    "description": "20L Akıllı Sensörlü Çöp Kovası UV Işık Koku Geçirmez Mutfak Banyo Wc Ofis",
+    "dimensionalWeight": 1,
+    "hasActiveCampaign": false,
+    "id": "4cf09550dbcc39066291f81a7c2dabe2",
+    "images": [
+      {
+        "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-wc-ofis-75660362-sw1024sh1536.webp"
+      },
+      {
+        "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-ofis-icin-187147589-sw1200sh1800.webp"
+      },
+      {
+        "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-ofis-icin-225713226-sw1200sh1800.webp"
+      }
+    ],
+    "lastPriceChangeDate": "2026-03-13T15:36:09.266+00:00",
+    "lastStockChangeDate": "2026-03-13T15:36:09.266+00:00",
+    "lastUpdateDate": 1773416940705,
+    "listPrice": 759,
+    "locked": false,
+    "onSale": false,
+    "pimCategoryId": 3870,
+    "productMainId": "8945254348824",
+    "quantity": 4872,
+    "salePrice": 759,
+    "stockCode": "8945254348824",
+    "stockUnitType": "Adet",
+    "supplierId": 1018476,
+    "title": "20L Akıllı Sensörlü Çöp Kovası UV Işık Koku Geçirmez Mutfak Banyo Wc Ofis",
+    "vatRate": 20,
+    "version": 2,
+    "rejected": true,
+    "rejectReasonDetails": [
+      {
+        "rejectReason": "Yasaklı Kelime",
+        "rejectReasonDetail": "Ürün ismi ya da açıklamasında; \"cop,cop\" yasaklı kelimesi kullanılmıştır. Lütfen ürün ve içeriğinizin yayına uygunluğunu kontrol ediniz. Platform kurallarını görmek için lütfen tıklayınız."
+      }
+    ],
+    "blacklisted": false,
+    "productUrl": null,
+    "locationBasedDelivery": "DISABLED",
+    "deliveryOption": null
+  },
+  {
+    "approved": false,
+    "archived": false,
+    "attributes": [
+      {
+        "attributeId": 1192,
+        "attributeName": "Menşei",
+        "attributeValue": "TK",
+        "attributeValueId": 10633874
+      },
+      {
+        "attributeId": 348,
+        "attributeName": "Web Color",
+        "attributeValue": "Çok Renkli",
+        "attributeValueId": 686230
+      },
+      {
+        "attributeId": 47,
+        "attributeName": "Renk",
+        "attributeValue": "Çok Renkli"
+      }
+    ],
+    "barcode": "8945254152766",
+    "batchRequestId": "c3bcef17-ed4b-43aa-bbb8-c1eeaf6a6905-1773502567",
+    "brand": "Eco Lounge",
+    "brandId": 2613880,
+    "categoryName": "Faks Kağıdı",
+    "createDateTime": 1773416168493,
+    "description": "Çöp Kovası, Tuvalet Fırçası, Sabunluk 5 Parça Banyo Seti",
+    "dimensionalWeight": 1,
+    "hasActiveCampaign": false,
+    "id": "9c341314e3682da67638ab1978b244b5",
+    "images": [
+      {
+        "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/siyah-5li-banyo-seti-cop-kovasi-tuvalet-fircasi-sabunluk-ve-aksesuarlar-10911486-sw1024sh1536.webp"
+      }
+    ],
+    "lastPriceChangeDate": "2026-03-13T15:36:08.774+00:00",
+    "lastStockChangeDate": "2026-03-13T15:36:08.774+00:00",
+    "lastUpdateDate": 1773416939694,
+    "listPrice": 253,
+    "locked": false,
+    "onSale": false,
+    "pimCategoryId": 3870,
+    "productMainId": "8945254152766",
+    "quantity": 4989,
+    "salePrice": 253,
+    "stockCode": "8945254152766",
+    "stockUnitType": "Adet",
+    "supplierId": 1018476,
+    "title": "Çöp Kovası, Tuvalet Fırçası, Sabunluk 5 Parça Banyo Seti",
+    "vatRate": 20,
+    "version": 2,
+    "rejected": true,
+    "rejectReasonDetails": [
+      {
+        "rejectReason": "Yasaklı Kelime",
+        "rejectReasonDetail": "Ürün ismi ya da açıklamasında; \"cop,cop\" yasaklı kelimesi kullanılmıştır. Lütfen ürün ve içeriğinizin yayına uygunluğunu kontrol ediniz. Platform kurallarını görmek için lütfen tıklayınız."
+      }
+    ],
+    "blacklisted": false,
+    "productUrl": null,
+    "locationBasedDelivery": "DISABLED",
+    "deliveryOption": null
+  }
+]

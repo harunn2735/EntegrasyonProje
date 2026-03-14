@@ -1,0 +1,7 @@
+{
+  "id": 1,
+  "name": "emirhan şirinoğlu",
+  "supplier_id": "1018476",
+  "api_key": "BbIwAsUbcBoOHqIiJS34",
+  "api_secret": "VHqn6g8OvQVLfE3W1Cox"
+}

@@ -1,0 +1,4 @@
+v1 OK BatchID: f9ca5511-26bc-4d6d-bb16-26622f6dec2d-1772289139
+Status: SUCCESS
+Fail: []
+Attrs: [{"attributeId":1192,"attributeValueId":10617300,"customAttributeValue":null},{"attributeId":47,"attributeValueId":null,"customAttributeValue":"Siyah"},{"attributeId":348,"attributeValueId":686230,"customAttributeValue":null}]

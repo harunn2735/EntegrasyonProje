@@ -1,0 +1,53 @@
+{
+  "batchRequestId": "d61880db-d187-453d-a08e-3f2f45e64caa-1772286959",
+  "items": [
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8680000000001",
+          "title": "Test Urun",
+          "productMainId": "TEST-001",
+          "brandId": 104956,
+          "categoryId": 3870,
+          "quantity": 5,
+          "stockCode": "TEST-001",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "description": "Test urun aciklamasi",
+          "currencyType": "-",
+          "listPrice": 100,
+          "salePrice": 100,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://cdn.dsmcdn.com/ty1/product/media/images/20200812/11/7798319/11111/1_1_org.jpg"
+            }
+          ],
+          "attributes": [],
+          "cargoCompanyId": null,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8680000000001"
+      },
+      "status": "FAILED",
+      "failureReasons": [
+        "Zorunlu kategori özellik bilgisi bulunamadı. Eksik özellik Id: 1192, Özellik Adı: Menşei. Tutarsızlıkları önlemek için lütfen güncel katalog verilerini alın ve ürün bilgilerini doğru şekilde besleyin.",
+        "Zorunlu kategori özellik bilgisi bulunamadı. Eksik özellik Id: 47, Özellik Adı: Renk. Tutarsızlıkları önlemek için lütfen güncel katalog verilerini alın ve ürün bilgilerini doğru şekilde besleyin.",
+        "Zorunlu kategori özellik bilgisi bulunamadı. Eksik özellik Id: 348, Özellik Adı: Web Color. Tutarsızlıkları önlemek için lütfen güncel katalog verilerini alın ve ürün bilgilerini doğru şekilde besleyin.",
+        "Girilen marka bilgisi geçerli değildir. Marka İsmi: 104956. Markanız sistemde bulunmuyorsa Ürün > Toplu Ürün İşlemleri sayfasından markanızı tanımlayabilirsiniz."
+      ]
+    }
+  ],
+  "status": "COMPLETED",
+  "creationDate": 1772200559189,
+  "lastModification": 1772200614918,
+  "sourceType": "API",
+  "itemCount": 1,
+  "failedItemCount": 1,
+  "batchRequestType": "ProductV2OnBoarding",
+  "notes": null,
+  "objectKey": null,
+  "storeFrontCode": null
+}

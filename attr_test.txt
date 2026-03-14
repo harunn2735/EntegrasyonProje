@@ -1,0 +1,4 @@
+Format A: Menşei CN value: BatchID=1a65e3f9-f043-40f7-b6d6-e8ccb0dc84ab-1772288562
+  Status: undefined
+  Attrs sent: undefined
+

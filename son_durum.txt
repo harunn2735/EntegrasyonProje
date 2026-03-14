@@ -1,0 +1,68 @@
+{
+  "dealer": {
+    "upload_status": "done",
+    "uploaded_count": 353
+  },
+  "logs": [
+    {
+      "id": 59,
+      "level": "success",
+      "message": "Bayi \"emirhan şirinoğlu\" için 353 ürün başarıyla Trendyol'a gönderildi.",
+      "created_at": "2026-02-27 14:35:11"
+    },
+    {
+      "id": 58,
+      "level": "info",
+      "message": "Batch 8 gönderildi (4 ürün)",
+      "created_at": "2026-02-27 14:35:09"
+    },
+    {
+      "id": 57,
+      "level": "info",
+      "message": "Batch 7 gönderildi (50 ürün)",
+      "created_at": "2026-02-27 14:35:07"
+    },
+    {
+      "id": 56,
+      "level": "info",
+      "message": "Batch 6 gönderildi (50 ürün)",
+      "created_at": "2026-02-27 14:35:04"
+    },
+    {
+      "id": 55,
+      "level": "info",
+      "message": "Batch 5 gönderildi (50 ürün)",
+      "created_at": "2026-02-27 14:35:02"
+    },
+    {
+      "id": 54,
+      "level": "info",
+      "message": "Batch 4 gönderildi (50 ürün)",
+      "created_at": "2026-02-27 14:35:00"
+    },
+    {
+      "id": 53,
+      "level": "info",
+      "message": "Batch 3 gönderildi (50 ürün)",
+      "created_at": "2026-02-27 14:34:57"
+    },
+    {
+      "id": 52,
+      "level": "info",
+      "message": "Batch 2 gönderildi (50 ürün)",
+      "created_at": "2026-02-27 14:34:54"
+    },
+    {
+      "id": 51,
+      "level": "info",
+      "message": "Batch 1 gönderildi (49 ürün)",
+      "created_at": "2026-02-27 14:34:52"
+    },
+    {
+      "id": 50,
+      "level": "info",
+      "message": "Bayi \"emirhan şirinoğlu\" için Trendyol aktarımı başlatıldı.",
+      "created_at": "2026-02-27 14:34:51"
+    }
+  ]
+}

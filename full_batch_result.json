@@ -1,0 +1,527 @@
+{
+  "batchRequestId": "cb0fed00-4f2c-4856-8954-b17182f3ac61-1773577517",
+  "items": [
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254152766-84697",
+          "title": "Çöp Kovası, Tuvalet Fırçası, Sabunluk 5 Parça Banyo Seti",
+          "productMainId": "8945254152766-84697",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 4989,
+          "stockCode": "8945254152766-84697",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "sgrPrice": null,
+          "description": "Çöp Kovası, Tuvalet Fırçası, Sabunluk 5 Parça Banyo Seti",
+          "currencyType": "TRY",
+          "listPrice": 253,
+          "salePrice": 253,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/siyah-5li-banyo-seti-cop-kovasi-tuvalet-fircasi-sabunluk-ve-aksesuarlar-10911486-sw1024sh1536.webp"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": 10633874,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": "Çok Renkli"
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": 686230,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": 10,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254152766-84697"
+      },
+      "status": "SUCCESS",
+      "failureReasons": []
+    },
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254177295-96140",
+          "title": "5'li Eco Banyo Seti Çöp Kovası Tuvalet Fırçası Sabunluk Diş Fırçalık 5 Parça Siyah Çizgili Yuvarlak",
+          "productMainId": "8945254177295-96140",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 4976,
+          "stockCode": "8945254177295-96140",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "sgrPrice": null,
+          "description": "5'li Eco Banyo Seti Çöp Kovası Tuvalet Fırçası Sabunluk Diş Fırçalık 5 Parça Siyah Çizgili Yuvarlak",
+          "currencyType": "TRY",
+          "listPrice": 253,
+          "salePrice": 253,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/5-li-eco-banyo-seti-cop-kovasi-tuvalet-fircasi-sabunluk-dis-fircalik-5-parca-siyah-cizgili-yuvarlak-60262775-sw1024sh1536.webp"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": 10633874,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": "Çok Renkli"
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": 686230,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": 10,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254177295-96140"
+      },
+      "status": "SUCCESS",
+      "failureReasons": []
+    },
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254348824-12988",
+          "title": "20L Akıllı Sensörlü Çöp Kovası UV Işık Koku Geçirmez Mutfak Banyo Wc Ofis",
+          "productMainId": "8945254348824-12988",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 4872,
+          "stockCode": "8945254348824-12988",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "sgrPrice": null,
+          "description": "20L Akıllı Sensörlü Çöp Kovası UV Işık Koku Geçirmez Mutfak Banyo Wc Ofis",
+          "currencyType": "TRY",
+          "listPrice": 759,
+          "salePrice": 759,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-wc-ofis-75660362-sw1024sh1536.webp"
+            },
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-ofis-icin-187147589-sw1200sh1800.webp"
+            },
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-ofis-icin-225713226-sw1200sh1800.webp"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": 10633874,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": "Çok Renkli"
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": 686230,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": 10,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254348824-12988"
+      },
+      "status": "SUCCESS",
+      "failureReasons": []
+    },
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254148271-48740",
+          "title": "5li Siyah Çizgili 5 Parça Banyo Seti Yuvarlak Çöp Kovası Tuvalet Fırçası Sabunluk Diş Fırçalık",
+          "productMainId": "8945254148271-48740",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 4997,
+          "stockCode": "8945254148271-48740",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "sgrPrice": null,
+          "description": "5li Siyah Çizgili 5 Parça Banyo Seti Yuvarlak Çöp Kovası Tuvalet Fırçası Sabunluk Diş Fırçalık",
+          "currencyType": "TRY",
+          "listPrice": 253,
+          "salePrice": 253,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/5li-siyah-cizgili-5-parca-banyo-seti-yuvarlak-cop-kovasi-tuvalet-fircasi-sabunluk-dis-fircalik-34157711-sw1024sh1536.webp"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": 10633874,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": "Çok Renkli"
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": 686230,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": 10,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254148271-48740"
+      },
+      "status": "SUCCESS",
+      "failureReasons": []
+    },
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254950676-50041",
+          "title": "Akıllı Sensörlü UV Işıklı 20 Litre Çöp Kovası - Mutfak, Banyo, İşyeri ve Ofis Kullanımı",
+          "productMainId": "8945254950676-50041",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 4990,
+          "stockCode": "8945254950676-50041",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "sgrPrice": null,
+          "description": "Akıllı Sensörlü UV Işıklı 20 Litre Çöp Kovası - Mutfak, Banyo, İşyeri ve Ofis Kullanımı",
+          "currencyType": "TRY",
+          "listPrice": 759,
+          "salePrice": 759,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/akilli-sensorlu-uv-isikli-20-litre-cop-kovasi-mutfak-banyo-isyeri-ve-ofis-kullanimi-3144649-sw1024sh1536.webp"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": 10633874,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": "Çok Renkli"
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": 686230,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": 10,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254950676-50041"
+      },
+      "status": "SUCCESS",
+      "failureReasons": []
+    },
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254718009-86680",
+          "title": "Sensörlü Teknolojik Çöp Kovası",
+          "productMainId": "8945254718009-86680",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 4999,
+          "stockCode": "8945254718009-86680",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "sgrPrice": null,
+          "description": "Sensörlü Teknolojik Çöp Kovası",
+          "currencyType": "TRY",
+          "listPrice": 759,
+          "salePrice": 759,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/sensorlu-teknolojik-cop-kovasi-40137049-sw1024sh1536.webp"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": 10633874,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": "Çok Renkli"
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": 686230,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": 10,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254718009-86680"
+      },
+      "status": "SUCCESS",
+      "failureReasons": []
+    },
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254168781-7234",
+          "title": "20L Akıllı Sensörlü Çöp Kovası UV Işık Koku Geçirmez Mutfak Banyo Ofis İçin",
+          "productMainId": "8945254168781-7234",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 4959,
+          "stockCode": "8945254168781-7234",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "sgrPrice": null,
+          "description": "20L Akıllı Sensörlü Çöp Kovası UV Işık Koku Geçirmez Mutfak Banyo Ofis İçin",
+          "currencyType": "TRY",
+          "listPrice": 759,
+          "salePrice": 759,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-ofis-icin-069341388-sw1200sh1800.webp"
+            },
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-ofis-icin-187147589-sw1200sh1800.webp"
+            },
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20l-akilli-sensorlu-cop-kovasi-uv-isik-koku-gecirmez-mutfak-banyo-ofis-icin-225713226-sw1200sh1800.webp"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": 10633874,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": "Çok Renkli"
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": 686230,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": 10,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254168781-7234"
+      },
+      "status": "SUCCESS",
+      "failureReasons": []
+    },
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254629442-39895",
+          "title": "20 Litre El Algılayan Sensörlü Çöp Kovası",
+          "productMainId": "8945254629442-39895",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 4995,
+          "stockCode": "8945254629442-39895",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "sgrPrice": null,
+          "description": "20 Litre El Algılayan Sensörlü Çöp Kovası",
+          "currencyType": "TRY",
+          "listPrice": 759,
+          "salePrice": 759,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/20-litre-el-algilayan-sensorlu-cop-kovasi-95937677-sw1024sh1536.webp"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": 10633874,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": "Çok Renkli"
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": 686230,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": 10,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254629442-39895"
+      },
+      "status": "SUCCESS",
+      "failureReasons": []
+    },
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254957057-89961",
+          "title": "Akıllı Teknolojik Sensörlü Otomatik Açılan Kapak 20 Litre Çöp Kovası UV Işıklı",
+          "productMainId": "8945254957057-89961",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 4983,
+          "stockCode": "8945254957057-89961",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "sgrPrice": null,
+          "description": "Akıllı Teknolojik Sensörlü Otomatik Açılan Kapak 20 Litre Çöp Kovası UV Işıklı",
+          "currencyType": "TRY",
+          "listPrice": 759,
+          "salePrice": 759,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/694f37df332a7-32011695-sw1024sh1536.webp"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": 10633874,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": "Çok Renkli"
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": 686230,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": 10,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254957057-89961"
+      },
+      "status": "SUCCESS",
+      "failureReasons": []
+    },
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254360352-30516",
+          "title": "Siyah 5’li Banyo Seti – Çöp Kovası, Tuvalet Fırçası, Sabunluk ve Aksesuarlar",
+          "productMainId": "8945254360352-30516",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 4977,
+          "stockCode": "8945254360352-30516",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "sgrPrice": null,
+          "description": "Siyah 5’li Banyo Seti – Çöp Kovası, Tuvalet Fırçası, Sabunluk ve Aksesuarlar",
+          "currencyType": "TRY",
+          "listPrice": 253,
+          "salePrice": 253,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://percdn.com/f/623354/bzR6WmFtNG0vcUp3ZXk4Z0hzWnBhZlJiYmNBPQ/p/69150ab5989c0-3832845-sw1024sh1536.webp"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": 10633874,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": "Çok Renkli"
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": 686230,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": 10,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254360352-30516"
+      },
+      "status": "SUCCESS",
+      "failureReasons": []
+    }
+  ],
+  "status": "COMPLETED",
+  "creationDate": 1773491117496,
+  "lastModification": 1773491119987,
+  "sourceType": "API",
+  "itemCount": 10,
+  "failedItemCount": 0,
+  "batchRequestType": "ProductV2OnBoarding",
+  "notes": null,
+  "objectKey": null,
+  "storeFrontCode": null
+}

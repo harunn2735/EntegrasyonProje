@@ -1,0 +1,8 @@
+Mensei TR: {"id":10633874,"name":"TK"}
+Mensei CN: {"id":10617300,"name":"CN"}
+
+Renk allowCustom: true
+Renk values sample: []
+
+Marka Belirtilmemiş: []
+Marka Markasız: [{"id":1267296,"name":"Markasız ucuz"}]

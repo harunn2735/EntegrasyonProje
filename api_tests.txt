@@ -1,0 +1,4 @@
+Test 1: SelfIntegration UA: 403 CLOUDFLARE BLOCK
+Test 2: apigw subdomain: 400 API Error: {"path":"/sellers/1018476/v2/products","exception":"ClientApiBusinessException","traceId":"64299bd0516a4829adc0c681a5898199","timestamp":1772200079224,"errors":[{"key":"batchRequest.items.empty","erro
+Test 3: Trendyol Seller API: 404 API Error: {"exception":"TrendyolSystemException","errors":[{"key":"NoResourceFound","message":"No static resource meal/suppliers/1018476/products."}],"requestId":"f75257d3-f1e3-4f91-90a2-b1c3ab9b0b43"}
+Test 4: Without sapigw: 556 API Error: {"message":"Service Unavailable"}

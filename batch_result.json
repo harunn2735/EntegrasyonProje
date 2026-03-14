@@ -1,0 +1,65 @@
+{
+  "batchRequestId": "dc7c9e79-be13-4c5c-99a8-0fd8d6b2b433-1773577459",
+  "items": [
+    {
+      "requestItem": {
+        "product": {
+          "barcode": "8945254177295-8358",
+          "title": "5'li Eco Banyo Seti Çöp Kovası Tuvalet Fırçası Sabunluk Diş Fırçalık 5 Parça Siyah Çizgili Yuvarlak",
+          "productMainId": "8945254177295-8358",
+          "brandId": 2613880,
+          "categoryId": 3870,
+          "quantity": 4976,
+          "stockCode": "8945254177295-8358",
+          "dimensionalWeight": 1,
+          "specialConsumptionTax": null,
+          "sgrPrice": null,
+          "description": "5'li Eco Banyo Seti Çöp Kovası Tuvalet Fırçası Sabunluk Diş Fırçalık 5 Parça Siyah Çizgili Yuvarlak",
+          "currencyType": "TRY",
+          "listPrice": 253,
+          "salePrice": 253,
+          "vatRate": 20,
+          "images": [
+            {
+              "url": "https://cdn.dsmcdn.com/ty1/product/media/images/20200812/11/7798319/11111/1_1_org.jpg"
+            }
+          ],
+          "attributes": [
+            {
+              "attributeId": 1192,
+              "attributeValueId": 10633874,
+              "customAttributeValue": null
+            },
+            {
+              "attributeId": 47,
+              "attributeValueId": null,
+              "customAttributeValue": "Çok Renkli"
+            },
+            {
+              "attributeId": 348,
+              "attributeValueId": 686230,
+              "customAttributeValue": null
+            }
+          ],
+          "cargoCompanyId": 10,
+          "shipmentAddressId": null,
+          "returningAddressId": null,
+          "lotNumber": null
+        },
+        "barcode": "8945254177295-8358"
+      },
+      "status": "SUCCESS",
+      "failureReasons": []
+    }
+  ],
+  "status": "COMPLETED",
+  "creationDate": 1773491059160,
+  "lastModification": 1773491060693,
+  "sourceType": "API",
+  "itemCount": 1,
+  "failedItemCount": 0,
+  "batchRequestType": "ProductV2OnBoarding",
+  "notes": null,
+  "objectKey": null,
+  "storeFrontCode": null
+}

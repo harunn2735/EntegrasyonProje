@@ -1,0 +1,563 @@
+﻿CREATE TABLE IF NOT EXISTS dealers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT,
+      profit_margin REAL DEFAULT 20,
+      status TEXT DEFAULT 'active',
+      upload_status TEXT DEFAULT 'pending',
+      uploaded_count INTEGER DEFAULT 0,
+      last_sync DATETIME,
+      supplier_id TEXT,
+      api_key TEXT,
+      api_secret TEXT
+    );
+CREATE TABLE IF NOT EXISTS products (
+      barcode TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      category TEXT,
+      stock INTEGER DEFAULT 0,
+      cost_price REAL DEFAULT 0,
+      image_url TEXT,
+      created_at DATETIME DEFAULT (datetime('now')),
+      updated_at DATETIME DEFAULT (datetime('now'))
+    );
+CREATE TABLE IF NOT EXISTS logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      level TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at DATETIME DEFAULT (datetime('now'))
+    );
+Veritabanı ve tablolar hazır.
+SELECT * FROM dealers WHERE api_key IS NOT NULL AND api_key != '' LIMIT 1
+Toplam 3864 kategori
+
+=== "kulaklık" ===
+  3474  İş Güvenlik Ürünleri > İş Güvenliği Kulaklık
+  775  Giyilebilir Teknoloji > Kulaklıklar
+  1058  Kulaklıklar > Kulak içi TWS Bluetooth Kulaklık
+  1778  Kulaklıklar > Kulak İçi Kablolu Kulaklık
+  1779  Kulaklıklar > Kulak Üstü Kablolu Kulaklık
+  5195  Kulaklıklar > Kulak üstü Bluetooth Kulaklık
+  5196  Kulaklıklar > Boyun Bantlı Bluetooth kulaklık
+  3494  Cep Telefonu Aksesuarları > Kulaklık Kılıfı
+  5510  Cep Telefonu Aksesuarları > Kulaklık Aksesuarı
+  5641  Cep Telefonu Aksesuarları > Kablosuz Kulaklık Koruyucu
+  2700  Oyuncu Donanımları > Oyuncu Kulaklık
+  3666  Sahne ve Studyo > Stüdyo Kulaklık
+
+=== "saat" ===
+  387  Aksesuar > Saat
+  3407  Diğer Aksesuar > Saat Kordonu
+  3243  Aksesuar > Saat Seti
+  1890  Giyilebilir Teknoloji > Akıllı Saat
+  5251  Giyilebilir Teknoloji > Akıllı Çocuk Saati
+  5489  Giyilebilir Teknoloji > Yenilenmiş Akıllı Saatler
+  5490  Yenilenmiş Akıllı Saatler > Yenilenmiş Akıllı Saat
+  5491  Yenilenmiş Akıllı Saatler > Yenilenmiş Akıllı Çocuk Saati
+  5496  Giyilebilir Teknoloji Aksesuarları > Akıllı Saat Aksesuarları
+  3222  Akıllı Saat Aksesuarları > Akıllı Saat Kordon
+  5497  Akıllı Saat Aksesuarları > Akıllı Saat Ekran Koruyucu
+  4006  Müzik Sistemleri > Alarm Saatli Radyo
+  840  Ev Dekorasyon > Masa Saati
+  2885  Duvar Dekorasyonu > Duvar Saati
+  4673  Hediyelik Ürünler > Kum Saati
+  4231  Yürüyen Aksam & Direksiyon > Oto Kilometre Saati
+  4151  Mekanik Aksam > Oto Zaman Saati
+  3916  Dalış Ürünleri > Dalış Saati
+
+=== "kamera" ===
+  1049  Güvenlik > Telsiz & Kamera & Dedektör
+  760  Elektronik > Foto & Kamera
+  764  Foto & Kamera > Foto & Kamera Aksesuarı
+  5616  Foto & Kamera > Dijital Kameralar
+  762  Dijital Kameralar > Video Kamera
+  5618  Foto & Kamera > Analog Kameralar
+  5619  Foto & Kamera > Foto & Kamera Lensleri
+  2151  Cep Telefonu Yedek Parçaları > Telefon Kamerası
+  5511  Cep Telefonu Aksesuarları > Kamera Lens Koruyucu
+  4963  Akıllı Ev Sistemleri > Akıllı Kamera
+  1949  Oto Ses Görüntü Sistemleri > Araç İçi Kamera
+  1952  Oto Ses Görüntü Sistemleri > Arka Görüş Kamerası
+  3917  Dalış Ürünleri > Dalış Kamerası
+  2703  Elektronik - Optik Ürünler > Aksiyon Kamerası
+  5261  Elektronik - Optik Ürünler > Aksiyon Kamera Aksesuarı
+  5283  Elektronik Optik Ürünler > Fotokapan Kamera
+
+=== "süpürge" ===
+  5361  Hırdavat > Süpürgelik
+  2950  Elektrikli Ev Aletleri Aksesuar > Süpürge Aksesuarı
+  5604  Elektrikli Ev Aletleri > Süpürge & Ütü
+  873  Süpürge & Ütü > Süpürge
+  3271  Süpürge > Dik Süpürge
+  3272  Süpürge > Toz Torbalı Süpürge
+  3273  Süpürge > Torbasız Süpürge
+  3274  Akıllı Ev Aletleri > Robot Süpürge
+  4484  Oto Bakım & Temizlik > Araç İçi Süpürge
+  2465  Temizlik Gereçleri > Temizlik Fırçası ve Süpürge
+
+=== "ısıtıcı" ===
+  5736  Karavan > Karavan ısıtıcı
+
+=== "spor" ===
+  449  Çanta > Spor Çantası
+  1200  Bahçe & Dış Mekan Oyuncakları > Spor Oyuncakları
+  3183  Sandalet ve Terlik > Spor Sandalet
+  3184  Sandalet ve Terlik > Spor Terlik
+  420  Ayakkabı > Spor Ayakkabı
+  1027  İç Giyim > Spor Sütyeni
+  5313  Büyük Beden > Büyük Beden Spor Sütyeni
+  5315  Büyük Beden > Büyük Beden Spor Tayt
+  3187  Giyim > Spor Giyim
+  3188  Spor Giyim > Spor Eşofman Altı
+  3189  Spor Giyim > Spor Eşofman Takımı
+  3190  Spor Giyim > Spor Etek
+  3191  Spor Giyim > Spor Pantolon
+  3192  Spor Giyim > Spor Şort
+  3193  Spor Giyim > Spor Bermuda
+  3194  Spor Giyim > Spor Tayt
+  3195  Spor Giyim > Spor Ceket
+  3196  Spor Giyim > Spor Yelek
+  3197  Spor Giyim > Spor Kaban
+  3198  Spor Giyim > Spor Mont
+  3199  Spor Giyim > Spor Kayak & Snowboard Mont
+  3200  Spor Giyim > Spor Yağmurluk & Rüzgarlık
+  3201  Spor Giyim > Spor Boxer
+  3202  Spor Giyim > Spor Çorap
+  3203  Spor Giyim > Spor İç Çamaşırı Takımı
+  3204  Spor Giyim > Spor Korse
+  3205  Spor Giyim > Spor Külot
+  3206  Spor Giyim > Spor Slip
+  3208  Spor Giyim > Spor Termal Giyim & İçlik
+  3209  Spor Giyim > Spor Atlet
+  3210  Spor Giyim > Spor Body
+  3211  Spor Giyim > Spor Büstiyer
+  3212  Spor Giyim > Spor Softshell & Polar
+  3213  Spor Giyim > Spor Sweatshirt
+  3214  Spor Giyim > Spor T-Shirt
+  4700  Spor Giyim > Spor Başörtüsü
+  5019  Spor Giyim > Spor Şapka
+  5188  Spor Giyim > Spor Alt - Üst Takım
+  5349  Spor Giyim > Spor Gömlek
+  4572  Giyim > Spor Tulum
+  1631  Hobi, Sanat, Akademik > Sağlık, Spor ve Diyet
+  1727  Sağlık, Spor ve Diyet > Spor Kitabı
+  3186  Spor & Outdoor
+  2040  Ekipman & Aksesuar > Su Sporu
+  2214  Su Sporu > Su Sporu Malzemesi
+  826  Koruyucu & Aksesuar > Sporcu Aksesuarı
+  827  Koruyucu & Aksesuar > Spor Malzemesi
+  3215  Ekipman & Aksesuar > Spor Bileklik
+  3216  Ekipman & Aksesuar > Sporcu Saç Bandı
+  3217  Ekipman & Aksesuar > Spor Kolluk
+  3219  Ekipman & Aksesuar > Spor Matara
+  3745  Ekipman & Aksesuar > Spor Dirseklik
+  3805  Boks > Spor Kemeri
+  4523  Ekipman & Aksesuar > Dövüş Sporları
+  4613  Ekipman & Aksesuar > Sporcu Bandı
+  4629  Ekipman & Aksesuar > Okçuluk Sporu
+  1813  Sağlık > Sporcu Besini & Supplementler
+
+=== "banyo" ===
+  1787  Bebek & Okul Öncesi Oyuncaklar > Banyo Oyuncakları
+  1067  Anne Bebek Ürünleri > Bebek Banyo & Tuvalet
+  453  Bebek Banyo & Tuvalet > Bebek Banyo Aksesuarı
+  5559  Banyo Yapı & Hırdavat
+  2569  Banyo Yapı & Hırdavat > Banyo Yapı Malzemeleri
+  2572  Banyo Yapı Malzemeleri > Banyo Askısı
+  2573  Banyo Yapı Malzemeleri > Banyo Aynası
+  2576  Banyo Yapı Malzemeleri > Banyo Tesisatı
+  4721  Bataryalar & Musluklar > Banyo Bataryası
+  5405  Banyo Yapı Malzemeleri > Yaşlı & Bedensel Engelli Banyo Ürünleri
+  5407  Yaşlı & Bedensel Engelli Banyo Ürünleri > Açılı Engelli Banyo Aynası
+  5408  Yaşlı & Bedensel Engelli Banyo Ürünleri > Engelli Banyo Bataryası
+  4901  Mobilya > Mutfak & Banyo Mobilyası
+  5583  Mutfak & Banyo Mobilyası > Banyo Mobilyası
+  1827  Banyo Mobilyası > Banyo Rafları
+  5574  Banyo Mobilyası > Banyo Dolabı Seti
+  452  Ev > Banyo
+  4897  Banyo > Banyo Tekstili
+  1829  Banyo Tekstili > Banyo Perdesi
+  2993  Banyo Tekstili > Banyo Paspası
+  4898  Banyo > Banyo Aksesuarları
+  1828  Banyo Aksesuarları > Banyo Düzenleyici
+  1830  Banyo Aksesuarları > Banyo Seti
+  4932  Banyo > Bebek&Çocuk Banyo
+  628  Cilt Bakım > Banyo & Duş Ürünleri
+  4804  Cilt Bakım > Banyo ve Duş Ürünleri
+  2954  Banyo ve Duş Ürünleri > Banyo Lifi ve Süngeri
+  4805  Banyo ve Duş Ürünleri > Banyo Köpüğü
+  4815  Banyo ve Duş Ürünleri > Banyo Topu
+  1339  Kuş Ürünleri > Kuş Banyosu
+  2218  Ev Temizlik > Mutfak & Banyo Temizlik
+  4877  Hasta Bakım ve Hareket Destek > Hasta Banyo Ürünü
+
+=== "ortopedik" ===
+  4858  Ortopedi Ürünleri > Ortopedik Minder
+  5087  Ortopedi Ürünleri > Ortopedik Boyunluk
+
+=== "masaj" ===
+  3615  Yüz Bakım Aleti > Yüz Masaj Aleti
+  5099  Cinsel Jel > Cinsel Masaj Jeli
+  5035  Sağlık > Masaj Aleti
+  3550  Masaj Aleti > Masaj Cihazı
+  3784  Masaj Aleti > Masaj Topu
+  4048  Masaj Aleti > Masaj Masası
+  4610  Masaj Aleti > Masaj Yastığı
+  4675  Masaj Aleti > Masaj Tabancası
+  5098  Masaj Aleti > Masaj Yağı
+  5372  Masaj Aleti > Masaj Kremi
+
+=== "epilasyon" ===
+  3090  Kişisel Bakım Aletleri > IPL Lazer Epilasyon Aleti
+  2430  Kozmetik & Kişisel Bakım > Tıraş, Ağda ve Epilasyon
+
+=== "nemlendirici" ===
+  3013  Akıllı Ev Aletleri > Hava Nemlendirici
+
+=== "projektör" ===
+  1789  Bebek & Okul Öncesi Oyuncaklar > Dönence ve Projektör
+  4556  Elektrik Tesisat Malzemesi > Projektör
+
+=== "oyun" ===
+  962  Atkı & Bere & Eldiven > Boyunluk
+  1177  Çocuk Gereçleri > Park Yatak & Oyun Parkı
+  1010  Anne & Bebek & Çocuk > Oyuncak
+  1011  Oyuncak > Eğitici Oyuncak
+  1012  Oyuncak > Peluş Oyuncak
+  1015  Oyuncak > Diğer Oyuncaklar
+  1194  Oyuncak > Bahçe Oyuncakları
+  1579  Deniz & Plaj Malzemeleri > Plaj Oyuncakları
+  1197  Oyuncak > Lego & Yapı Oyuncakları
+  1198  Oyuncak > Oyuncak Bebek ve Aksesuarı
+  1781  Oyuncak > Oyun Hamuru
+  1785  Oyuncak > Bebek & Okul Öncesi Oyuncaklar
+  1013  Bebek & Okul Öncesi Oyuncaklar > Bebek & Aktivite Oyuncakları
+  1787  Bebek & Okul Öncesi Oyuncaklar > Banyo Oyuncakları
+  1790  Bebek & Okul Öncesi Oyuncaklar > Oyun Halısı
+  1791  Bebek & Okul Öncesi Oyuncaklar > Puset & Mama Sandalyesi Oyuncağı
+  1792  Bebek & Okul Öncesi Oyuncaklar > Sallanan Oyuncak
+  4492  Bebek & Okul Öncesi Oyuncaklar > Emekleme Oyuncakları
+  2230  Oyuncak > Oyuncak Silah & Su Tabancası
+  2231  Oyuncak > Kutu Oyunu
+  2254  Oyuncak > Oyun Seti
+  2256  Oyuncak > Ahşap Oyuncak
+  4486  Oyuncak > Bahçe & Dış Mekan Oyuncakları
+  1200  Bahçe & Dış Mekan Oyuncakları > Spor Oyuncakları
+  3676  Bahçe & Dış Mekan Oyuncakları > Oyun Çadırı
+  4488  Bahçe & Dış Mekan Oyuncakları > Oyun Parkı
+  4497  Oyuncak > Figür Oyuncaklar
+  4498  Figür Oyuncaklar > Hayvan Figür Oyuncak
+  4499  Figür Oyuncaklar > Karakter Figür Oyuncak
+  4500  Figür Oyuncaklar > Diğer Figür Oyuncaklar
+  4501  Figür Oyuncaklar > Sürpriz Oyuncak Figürü
+  4502  Oyuncak > Oyun Setleri
+  4505  Oyun Setleri > Oyuncak Bilim Seti
+  4507  Oyun Setleri > Müzik Oyuncakları
+  4508  Oyuncak > Oyuncak Araçlar
+  831  Oyuncak Araçlar > Kumandalı Oyuncak
+  2255  Oyuncak Araçlar > Oyuncak Araba
+  4510  Oyuncak Araçlar > Oyuncak Otobüs ve Minibüs
+  4511  Oyuncak Araçlar > Oyuncak Kamyon ve İş Makinesi
+  4512  Oyuncak Araçlar > Oyuncak Helikopter ve Uçak
+  4513  Oyuncak Araçlar > Oyuncak Tren ve Demiryolu
+  4516  Oyuncak > Oyuncak Bebek
+  786  Elektronik > Oyun & Oyun Konsolları
+  5394  Konsol Aksesuarları > Mobil Oyun Aksesuarı
+  1900  Oyun & Oyun Konsolları > Bilgisayar Oyunu
+  1901  Oyun & Oyun Konsolları > Diğer Oyun Konsolları
+  2724  Oyun & Oyun Konsolları > Nintendo Oyunu
+  2725  Oyun & Oyun Konsolları > Playstation Oyunları
+  5189  Playstation Oyunları > PS5 Oyunu
+  5190  Playstation Oyunları > PS4 Oyunu
+  5191  Playstation Oyunları > PS3 Oyunu
+  5192  Playstation Oyunları > PS2 Oyunları
+  2726  Oyun & Oyun Konsolları > PSP & Vita Oyunu
+  2727  Oyun & Oyun Konsolları > Xbox Oyunu
+  2696  Dizüstü Bilgisayarlar > Oyuncu Dizüstü Bilgisayarı
+  2697  Masaüstü Bilgisayarlar > Oyuncu Masaüstü Bilgisayarı
+  5484  Yenilenmiş Bilgisayarlar > Yenilenmiş Oyuncu Masaüstü Bilgisayarı
+  5485  Yenilenmiş Bilgisayarlar > Yenilenmiş Oyuncu Dizüstü Bilgisayarı
+  2701  Monitörler > Oyuncu Monitör
+  5196  Kulaklıklar > Boyun Bantlı Bluetooth kulaklık
+  3408  Dijital Kart & Kupon > Şans Oyunları
+  2698  Bilgisayar Aksesuarları > Oyuncu Donanımları
+  2700  Oyuncu Donanımları > Oyuncu Kulaklık
+  2702  Oyuncu Donanımları > Oyuncu Mouse
+  2850  Oyuncu Donanımları > Oyuncu Klavyesi
+  4981  Oyuncu Donanımları > Oyuncu Klavye Mouse Set
+  2835  Ofis Mobilyaları > Oyuncu Koltuğu
+  4099  Ofis Mobilyaları > Oyuncu Masası
+  1786  Bebek & Çocuk Odası Mobilyası > Oyun & Aktivite Masası
+  4996  Bebek & Çocuk Odası Mobilyası > Oyuncak Dolabı
+  4569  Hobi & Eğlence > Oyun Grupları
+  2921  Oyun Grupları > Diğer Oyun Takımları
+  3516  Oyun Grupları > Oyun Kartları
+  4570  Oyun Grupları > Kağıt Oyunu
+  2705  Motosiklet Koruma Ekipmanları > Motosiklet Boyunluk
+  1288  Kedi Ürünleri > Kedi Oyuncağı
+  1357  Köpek Ürünleri > Köpek Oyuncağı
+  1341  Kuş Ürünleri > Kuş Oyuncağı
+  5240  Cinsel Sağlık > Cinsel Oyuncak
+  5092  Cinsel Oyuncak > Anal Oyuncak
+  5087  Ortopedi Ürünleri > Ortopedik Boyunluk
+
+=== "bebek" ===
+  2862  Anne & Bebek & Çocuk
+  977  Çocuk Gereçleri > Bebek Arabası & Puset
+  1808  Bebek Arabası & Puset > 3 Tekerlekli Bebek Bisikleti
+  1809  Bebek Arabası & Puset > Baston Bebek Arabası
+  1810  Bebek Arabası & Puset > Bebek Arabası
+  1811  Bebek Arabası & Puset > İkiz Bebek Arabası
+  1812  Bebek Arabası & Puset > Seyahat Sistem Bebek Arabası
+  4088  Bebek Arabası & Puset > Bebek Arabası Aksesuar
+  5513  Bebek Arabası & Puset > Onarılmış Bebek Arabası & Puset
+  984  Çocuk Gereçleri > Bebek & Çocuk Odası
+  1175  Çocuk Gereçleri > Bebek Salıncağı & Hoppala
+  1856  Çocuk Gereçleri > Bebek Bakım Çantası
+  1198  Oyuncak > Oyuncak Bebek ve Aksesuarı
+  1785  Oyuncak > Bebek & Okul Öncesi Oyuncaklar
+  1013  Bebek & Okul Öncesi Oyuncaklar > Bebek & Aktivite Oyuncakları
+  4516  Oyuncak > Oyuncak Bebek
+  4517  Oyuncak Bebek > Bez Bebek
+  4518  Oyuncak Bebek > Et Bebek
+  4519  Oyuncak Bebek > Model Bebek
+  2164  Anne & Bebek & Çocuk > Bebek Hediyelik
+  5216  Anne & Bebek & Çocuk > Anne Bebek Ürünleri
+  1067  Anne Bebek Ürünleri > Bebek Banyo & Tuvalet
+  453  Bebek Banyo & Tuvalet > Bebek Banyo Aksesuarı
+  1006  Bebek Banyo & Tuvalet > Bebek Küveti
+  4481  Anne Bebek Ürünleri > Bebek Beslenme Ürünleri
+  4989  Mobilya > Bebek & Çocuk Odası Mobilyası
+  2097  Bebek & Çocuk Odası Mobilyası > Bebek Odası Takımı
+  2099  Bebek & Çocuk Odası Mobilyası > Bebek Odası Sandalye & Koltuk
+  4932  Banyo > Bebek&Çocuk Banyo
+  4935  Bebek&Çocuk Banyo > Bebek & Çocuk Bornoz
+  4936  Bebek&Çocuk Banyo > Bebek & Çocuk Havlu
+  4909  Ev Tekstili > Bebek&Çocuk Ev Tekstil
+  2365  Bebek&Çocuk Ev Tekstil > Bebek & Çocuk Battaniyesi
+  2366  Bebek&Çocuk Ev Tekstil > Bebek & Çocuk Çarşafı
+  2367  Bebek&Çocuk Ev Tekstil > Bebek & Çocuk Nevresim Takımı
+  2368  Bebek&Çocuk Ev Tekstil > Bebek & Çocuk Pike
+  2369  Bebek&Çocuk Ev Tekstil > Bebek & Çocuk Uyku Seti
+  2370  Bebek&Çocuk Ev Tekstil > Bebek & Çocuk Yastık ve Kılıfı
+  2371  Bebek&Çocuk Ev Tekstil > Bebek & Çocuk Yatak Örtüsü
+  2372  Bebek&Çocuk Ev Tekstil > Bebek & Çocuk Yorgan
+  1179  Giyim > Bebek Giyim
+  936  Bebek Giyim > Bebek Body & Zıbın
+  947  Bebek Giyim > Bebek Takımı
+  2866  Bebek Giyim > Bebek Tulumu
+  2837  Müzik Alet ve Ekipmanları > Bebek & Çocuk Müzikleri
+  2861  Süpermarket > Anne ve Bebek Bakım
+  998  Anne ve Bebek Bakım > Bebek Bakım ve Kozmetik
+  1000  Bebek Bakım ve Kozmetik > Bebek Kremi ve Yağı
+  1004  Bebek Bakım ve Kozmetik > Bebek Bakım Örtüsü
+  1007  Bebek Bakım ve Kozmetik > Bebek Fırça ve Tarağı
+  1009  Bebek Bakım ve Kozmetik > Diğer Bebek Bakım Ürünleri
+  2165  Bebek Bakım ve Kozmetik > Bebek Güneş Kremi
+  2334  Bebek Bakım ve Kozmetik > Bebek Pudrası ve Kolonyası
+  2336  Bebek Bakım ve Kozmetik > Bebek Diş Fırçası
+  2337  Bebek Bakım ve Kozmetik > Bebek Sabunu
+  2338  Bebek Bakım ve Kozmetik > Bebek Şampuanı
+  2890  Bebek Bakım ve Kozmetik > Bebek Bezi ve Islak Mendil
+  1001  Bebek Bezi ve Islak Mendil > Bebek Islak Mendil
+  1002  Bebek Bezi ve Islak Mendil > Bebek Bezi
+  2987  Bebek Bakım ve Kozmetik > Bebek Bakım Seti
+  5085  Bebek Bakım ve Kozmetik > Bebek Diş Macunu
+  1005  Anne ve Bebek Bakım > Bebek Sağlık Ürünleri
+  5033  Bebek Sağlık Ürünleri > Bebek Temizleme Pamuğu
+  5086  Bebek Sağlık Ürünleri > Diğer Bebek Sağlık Ürünleri
+  2339  Anne ve Bebek Bakım > Bebek Beslenme ve Emzirme
+  2340  Bebek Beslenme ve Emzirme > Bebek Ek Besin
+  2346  Bebek Ek Besin > Diğer Bebek Ek Besinler
+  2347  Bebek Ek Besin > Bebek Bisküvisi
+  2348  Bebek Ek Besin > Bebek Suyu, Meyve Suyu ve Çayı
+  2349  Bebek Ek Besin > Bebek Çorbası
+  2341  Bebek Beslenme ve Emzirme > Bebek Maması
+  3551  Bebek Maması > Bebek Sütü
+  4987  Anne ve Bebek Bakım > Bebek Temizlik
+  3091  Bebek Temizlik > Bebek Deterjanı
+  3092  Bebek Temizlik > Bebek Çamaşır Yumuşatıcısı
+  3093  Bebek Temizlik > Bebek Leke Çıkarıcı
+
+=== "büyük" ===
+  2961  Giyim > Büyük Beden
+  2962  Büyük Beden > Büyük Beden Elbise
+  2963  Büyük Beden > Büyük Beden Etek
+  2964  Büyük Beden > Büyük Beden Gömlek
+  2965  Büyük Beden > Büyük Beden Abiye Elbise
+  2966  Büyük Beden > Büyük Beden Pantolon
+  2967  Büyük Beden > Büyük Beden Sweatshirt
+  2968  Büyük Beden > Büyük Beden Tayt
+  2969  Büyük Beden > Büyük Beden T-Shirt
+  2970  Büyük Beden > Büyük Beden Bluz
+  2971  Büyük Beden > Büyük Beden Tunik
+  2972  Büyük Beden > Büyük Beden Ceket
+  2973  Büyük Beden > Büyük Beden Yelek
+  2974  Büyük Beden > Büyük Beden Eşofman Altı
+  2975  Büyük Beden > Büyük Beden Kaban
+  2976  Büyük Beden > Büyük Beden Mont
+  2977  Büyük Beden > Büyük Beden Hırka
+  2978  Büyük Beden > Büyük Beden Kazak
+  2979  Büyük Beden > Büyük Beden Trençkot
+  2980  Büyük Beden > Büyük Beden Mayo
+  2981  Büyük Beden > Büyük Beden Tulum
+  2982  Büyük Beden > Büyük Beden Şort & Bermuda
+  2983  Büyük Beden > Büyük Beden Eşofman Takımı
+  3535  Büyük Beden > Büyük Beden Abiye Takım
+  3609  Büyük Beden > Büyük Beden Pijama Altı
+  3610  Büyük Beden > Büyük Beden Pijama Takımı
+  3611  Büyük Beden > Büyük Beden Pijama Üstü
+  5305  Büyük Beden > Büyük Beden Atlet
+  5306  Büyük Beden > Büyük Beden Alt - Üst Takım
+  5307  Büyük Beden > Büyük Beden Bikini Altı
+  5308  Büyük Beden > Büyük Beden Body
+  5309  Büyük Beden > Büyük Beden Bikini Üstü
+  5310  Büyük Beden > Büyük Beden Gecelik
+  5311  Büyük Beden > Büyük Beden Jeans
+  5312  Büyük Beden > Büyük Beden Külot
+  5313  Büyük Beden > Büyük Beden Spor Sütyeni
+  5314  Büyük Beden > Büyük Beden Sütyen
+  5315  Büyük Beden > Büyük Beden Spor Tayt
+  5318  Büyük Beden > Büyük Beden Süveter
+  5321  Büyük Beden > Büyük Beden Kimono & Kaftan
+  5322  Büyük Beden > Büyük Beden Pareo
+  5323  Büyük Beden > Büyük Beden İç Çamaşırı Takımı
+  5324  Büyük Beden > Büyük Beden Babydoll
+  5325  Büyük Beden > Büyük Beden Büstiyer
+  5326  Büyük Beden > Büyük Beden Korse
+  5327  Büyük Beden > Büyük Beden Fantezi Gecelik
+  5328  Büyük Beden > Büyük Beden İç Çamaşırı
+  5345  Büyük Beden > Büyük Beden Bikini Takımı
+  5354  Büyük Beden > Büyük Beden Külotlu Çorap
+  5392  Büyük Beden > Büyük Beden Denim Ceket
+  5393  Büyük Beden > Büyük Beden Deniz Şortu
+  5580  Büyük Beden > Büyük Beden Polo Yaka T-Shirt
+  5470  Çiftlik Hayvanı Ürünleri > Büyükbaş Hayvan Ürünü
+
+=== "tencere" ===
+  912  Pişirme > Tencere
+  2986  Pişirme > Düdüklü Tencere
+  5478  Pişirme > Tencere Yedek Parça ve Aksesuar
+
+=== "pil" ===
+  867  Kişisel Bakım Aletleri > Epilatör
+  3090  Kişisel Bakım Aletleri > IPL Lazer Epilasyon Aleti
+  1841  Ofis Teknolojileri > Pil & Şarj Cihazı
+  3468  Kalem > Pilot Kalem
+  3277  Diş Fırçası > Pilli Diş Fırçası
+  2430  Kozmetik & Kişisel Bakım > Tıraş, Ağda ve Epilasyon
+  2909  Ekipman & Aksesuar > Pilates & Yoga
+  1910  Pilates & Yoga > Pilates Malzemeleri
+  3546  Pilates Malzemeleri > Pilates Topu
+  3547  Pilates Malzemeleri > Pilates Seti
+  3549  Pilates Malzemeleri > Pilates Minder & Mat
+  3553  Pilates Malzemeleri > Pilates Çemberi
+  3722  Pilates Malzemeleri > Pilates Ekipmanı
+
+=== "mutfak" ===
+  4504  Oyun Setleri > Evcilik ve Mutfak Setleri
+  5227  Yiyecek Hazırlama > Mutfak Tartısı
+  3411  Halı / Kilim > Mutfak Halısı
+  4901  Mobilya > Mutfak & Banyo Mobilyası
+  5215  Mutfak & Banyo Mobilyası > Mutfak Mobilyası
+  2128  Mutfak Mobilyası > Mutfak Dolapları
+  2132  Mutfak Dolapları > Hazır Mutfak Dolapları
+  2133  Mutfak Dolapları > Mutfak Rafı
+  2129  Mutfak Mobilyası > Mutfak Masası
+  2130  Mutfak Mobilyası > Mutfak Masası Takımı
+  2177  Mutfak Mobilyası > Mutfak Sandalyesi
+  5462  Mutfak Mobilyası > Mutfak Adası
+  891  Banyo Tekstili > Mutfak Havlusu
+  890  Ev Tekstili > Mutfak Tekstili
+  893  Mutfak Tekstili > Mutfak Önlüğü & Eldiven
+  896  Ev > Sofra & Mutfak
+  4449  Yemek Hazırlık > Mutfak Makası
+  2188  Sofra & Mutfak > Mutfak Saklama ve Düzenleme
+  4458  Mutfak Saklama ve Düzenleme > Mutfak Düzenleyici
+  3172  Sofra & Mutfak > Endüstriyel Mutfak Ekipmanı
+  1037  Kamp > Kamp Mutfak Ürünleri
+  1401  Ev ve Temizlik Gereçleri > Mutfak Sarf Malzemeleri
+  2218  Ev Temizlik > Mutfak & Banyo Temizlik
+
+=== "yastık" ===
+  500  Yatak Odası Tekstili > Yastık&Yastık Kılıfı
+  1850  Yastık&Yastık Kılıfı > Yastık
+  1851  Yastık&Yastık Kılıfı > Yastık Kılıfı
+  3412  Yastık&Yastık Kılıfı > Yastık Alezi
+  2370  Bebek&Çocuk Ev Tekstil > Bebek & Çocuk Yastık ve Kılıfı
+  2041  Kamp > Şişme Mat & Yastık
+
+=== "musluk" ===
+  2661  Bahçe Sulama > Bahçe Muslukları
+  4719  Banyo Yapı Malzemeleri > Bataryalar & Musluklar
+  4720  Bataryalar & Musluklar > Ara Musluk
+  4726  Bataryalar & Musluklar > Musluk Başlığı
+
+=== "raf" ===
+  5317  Altın > Sarrafiyeli Takı
+  1885  Dijital Kameralar > Aynasız Fotoğraf Makinesi
+  1886  Dijital Kameralar > Dijital Fotoğraf Makinesi
+  1888  Dijital Kameralar > DSLR Fotoğraf Makinesi
+  5617  Dijital Kameralar > Kompakt Fotoğraf Makinesi
+  5620  Foto & Kamera > Fotoğraf Makinesi Aksesuarları
+  2887  Tablet Grubu > Grafik Tablet
+  2105  Salon & Oturma Odası > Duvar Rafı
+  2133  Mutfak Dolapları > Mutfak Rafı
+  1827  Banyo Mobilyası > Banyo Rafları
+  4571  Sanat Eseri > Fotoğraf
+  906  Sofra > Sürahi ve Karaf
+  3538  Hobi Malzemeleri > Filografi Malzemesi
+  3947  Hobi Malzemeleri > Rafya
+  3862  Kırtasiye Kağıt Ürünleri > Fotoğraf Albümü
+  3867  Kırtasiye Kağıt Ürünleri > Fotoğraf Kağıdı
+  3874  Kalem > Kaligrafi Kalemi
+  5538  Eğitim > Coğrafya Atlası
+  1664  Hobi > Fotoğrafçılık Kitabı
+  1742  Edebiyat > Biyografi
+  1966  Araç Güvenliği > Trafik & İlk Yardım Seti
+
+=== "yağmurluk" ===
+  2743  Tesettür Giyim > Tesettür Yağmurluk & Rüzgarlık
+  541  Dış Giyim > Yağmurluk & Rüzgarlık
+  3200  Spor Giyim > Spor Yağmurluk & Rüzgarlık
+
+=== "fener" ===
+  4051  Parti Malzemeleri > Dilek Feneri
+  3928  Dalış Ürünleri > Dalış Feneri
+  2060  Elektronik - Optik Ürünler > El Feneri
+
+=== "telefon" ===
+  4939  Elektronik Aksesuarlar > Cep Telefonu Aksesuarları
+  1056  Cep Telefonu Aksesuarları > Araç İçi Telefon Tutucu
+  1060  Cep Telefonu Aksesuarları > Cep Telefonu Yedek Parçaları
+  770  Cep Telefonu Yedek Parçaları > Telefon Bataryası
+  1061  Cep Telefonu Yedek Parçaları > Telefon Ekranı
+  1063  Cep Telefonu Yedek Parçaları > Telefon Kasası
+  1064  Cep Telefonu Yedek Parçaları > Telefon Tuş Takımı
+  2151  Cep Telefonu Yedek Parçaları > Telefon Kamerası
+  5250  Elektronik > Telefon
+  2152  Telefon > Telsiz & Masaüstü Telefon
+  3718  Telefon > Tuşlu Cep Telefonu
+  3719  Telefon > Akıllı Cep Telefonu
+  5473  Akıllı Cep Telefonu > IOS Cep Telefonları
+  5474  Akıllı Cep Telefonu > Android Cep Telefonu
+  5475  Akıllı Cep Telefonu > İthalatçı Garantili Telefon
+  3720  Telefon > Yenilenmiş Cep Telefonu
+  5733  Araç İçi Aksesuarı > Torpido Telefon Sabitleyici
+
+=== "şarj" ===
+  4844  Enerji Sistemleri > Şarj Regülatörü
+  5499  Cep Telefonu Aksesuarları > Şarj Cihazları
+  772  Şarj Cihazları > Şarj Aleti
+  5501  Şarj Cihazları > Şarj Adaptörü
+  5502  Şarj Cihazları > Araç Şarj Cihazı
+  5503  Şarj Cihazları > Kablosuz Şarj Cihazı
+  5500  Cep Telefonu Aksesuarları > Şarj Kabloları
+  5504  Şarj Kabloları > Şarj Kablosu
+  1841  Ofis Teknolojileri > Pil & Şarj Cihazı
+  3275  Diş Fırçası > Şarj Edilebilir Diş Fırçası
+  4752  Oto Akü ve Aksesuarları > Akü Şarj Cihazı
+  5626  Otomobil > Elektrikli Araç Şarj Ekipmanları
+  5625  Elektrikli Araç Şarj Ekipmanları > Elektrikli Araç Şarj İstasyonu Aksesuarları
+  5627  Elektrikli Araç Şarj Ekipmanları > Elektrikli Araç Şarj İstasyonu
