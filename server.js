@@ -248,11 +248,12 @@ app.post('/api/dealer/xml-feeds/:id/import', authMiddleware, async (req, res) =>
         const margin = marginRow?.margin ?? dealer?.profit_margin ?? 20;
 
         const insertOrUpdate = db.prepare(`
-            INSERT INTO dealer_products (dealer_id, barcode, title, category, stock, cost_price, sale_price, image_url, supplier_name, xml_feed_id)
-            VALUES (@dealer_id, @barcode, @title, @category, @stock, @cost_price, @sale_price, @image_url, @supplier_name, @xml_feed_id)
+            INSERT INTO dealer_products (dealer_id, barcode, title, category, xml_category_id, stock, cost_price, sale_price, image_url, supplier_name, xml_feed_id)
+            VALUES (@dealer_id, @barcode, @title, @category, @xml_category_id, @stock, @cost_price, @sale_price, @image_url, @supplier_name, @xml_feed_id)
             ON CONFLICT(dealer_id, barcode) DO UPDATE SET
                 title = excluded.title,
                 category = excluded.category,
+                xml_category_id = excluded.xml_category_id,
                 stock = excluded.stock,
                 cost_price = excluded.cost_price,
                 sale_price = excluded.sale_price,
@@ -724,26 +725,41 @@ function getTrendyolCategoryByName(subCategory, topCategory) {
 app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
     const dealerId = req.dealer.id;
     const { store_id } = req.body;
-    res.json({ ok: true, message: 'Yükleme başlatıldı' });
+
+    let store;
+    if (store_id) {
+        store = db.prepare('SELECT * FROM stores WHERE id = ? AND dealer_id = ?').get(store_id, dealerId);
+    } else {
+        store = db.prepare('SELECT * FROM dealers WHERE id = ?').get(dealerId);
+        if (!store?.supplier_id || !store?.api_key || !store?.api_secret) {
+            store = db.prepare(`
+                SELECT *
+                FROM stores
+                WHERE dealer_id = ? AND supplier_id IS NOT NULL AND supplier_id != ''
+                  AND api_key IS NOT NULL AND api_key != ''
+                  AND api_secret IS NOT NULL AND api_secret != ''
+                ORDER BY id ASC
+                LIMIT 1
+            `).get(dealerId);
+        }
+    }
+
+    if (!store?.supplier_id || !store?.api_key || !store?.api_secret) {
+        return res.status(400).json({ error: 'Trendyol API bilgileri eksik. Ayarlar veya Mağazalarım bölümünden Supplier ID / API Key / API Secret girin.' });
+    }
+
+    const products = db.prepare('SELECT * FROM dealer_products WHERE dealer_id = ? AND stock > 0').all(dealerId);
+    if (!products.length) {
+        return res.status(400).json({ error: 'Gönderilecek stoklu ürün bulunamadı.' });
+    }
+
+    res.json({ ok: true, message: `Yükleme başlatıldı (${products.length} ürün)` });
 
     // Arka planda çalış
     (async () => {
         try {
             console.log('--- UPLOAD TRIGGERED ---', { dealerId, store_id });
-            let store;
-            if (store_id) {
-                store = db.prepare('SELECT * FROM stores WHERE id = ? AND dealer_id = ?').get(store_id, dealerId);
-            } else {
-                store = db.prepare('SELECT * FROM dealers WHERE id = ?').get(dealerId);
-            }
             console.log('Store record:', store ? `Found (ID: ${store.id})` : 'NOT FOUND');
-            if (!store?.supplier_id || !store?.api_key || !store?.api_secret) {
-                console.log('MISSING CREDENTIALS, ABORTING UPLOAD');
-                return;
-            }
-
-            const products = db.prepare('SELECT * FROM dealer_products WHERE dealer_id = ? AND stock > 0').all(dealerId);
-            if (!products.length) return;
 
             const authString = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
             const API_URL = `https://apigw.trendyol.com/integration/product/sellers/${store.supplier_id}/products`;
