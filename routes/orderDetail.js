@@ -78,7 +78,7 @@ async function fetchFromTrendyol(dealerId, orderNumber) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
       return { error: 'Trendyol API zaman aşımı', status: 504 };
     }
-    const detail = err.response?.data?.message || err.message;
+    const detail = err.response?.data?.message || 'API isteği başarısız';
     return { error: 'Trendyol API hatası', detail, status: 502 };
   }
 
@@ -131,28 +131,36 @@ router.get('/:orderNumber', async (req, res) => {
   const dealerId = req.dealer.id;
   const { orderNumber } = req.params;
 
-  // 1. Local DB'den dene
-  const local = fetchFromLocal(dealerId, orderNumber);
-  if (local) {
-    const tracking_url  = getTrackingUrl(local.cargo_company, local.tracking_number);
-    const trendyol_url  = `https://partner.trendyol.com/orders/${orderNumber}`;
-    return res.json({ ...local, tracking_url, trendyol_url });
+  if (!/^\d{1,20}$/.test(orderNumber)) {
+    return res.status(400).json({ error: 'Geçersiz sipariş numarası' });
   }
 
-  // 2. Trendyol API'dan dene
-  const remote = await fetchFromTrendyol(dealerId, orderNumber);
+  try {
+    // 1. Local DB'den dene
+    const local = fetchFromLocal(dealerId, orderNumber);
+    if (local) {
+      const tracking_url  = getTrackingUrl(local.cargo_company, local.tracking_number);
+      const trendyol_url  = `https://partner.trendyol.com/orders/${orderNumber}`;
+      return res.json({ ...local, tracking_url, trendyol_url });
+    }
 
-  if (remote?.error) {
-    return res.status(remote.status || 502).json({ error: remote.error, detail: remote.detail });
+    // 2. Trendyol API'dan dene
+    const remote = await fetchFromTrendyol(dealerId, orderNumber);
+
+    if (!remote) {
+      return res.status(404).json({ error: 'Sipariş bulunamadı' });
+    }
+
+    if (remote.error) {
+      return res.status(remote.status || 502).json({ error: remote.error, detail: remote.detail });
+    }
+
+    const tracking_url = getTrackingUrl(remote.cargo_company, remote.tracking_number);
+    const trendyol_url = `https://partner.trendyol.com/orders/${orderNumber}`;
+    return res.json({ ...remote, tracking_url, trendyol_url });
+  } catch (err) {
+    return res.status(500).json({ error: 'Sunucu hatası', detail: err.message });
   }
-
-  if (!remote) {
-    return res.status(404).json({ error: 'Sipariş bulunamadı' });
-  }
-
-  const tracking_url = getTrackingUrl(remote.cargo_company, remote.tracking_number);
-  const trendyol_url = `https://partner.trendyol.com/orders/${orderNumber}`;
-  return res.json({ ...remote, tracking_url, trendyol_url });
 });
 
 module.exports = router;
