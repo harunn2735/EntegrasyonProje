@@ -8,6 +8,8 @@ const nodemailer = require('nodemailer');
 const { XMLParser } = require('fast-xml-parser');
 const db = require('./database');
 const orderDetailRouter = require('./routes/orderDetail');
+const questionsRouter = require('./routes/questions');
+const startQuestionsCron = require('./cron/questionsCron');
 
 require('dotenv').config();
 
@@ -1623,6 +1625,7 @@ app.get('/api/dealer/orders', authMiddleware, (req, res) => {
 });
 
 app.use('/api/orders', authMiddleware, orderDetailRouter);
+app.use('/api/questions', authMiddleware, questionsRouter);
 
 app.get('/api/dealer/orders/:orderNumber', authMiddleware, (req, res) => {
     const dealerId = req.dealer.id;
@@ -2329,6 +2332,8 @@ app.get('/', (req, res) => {
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+startQuestionsCron();
 
 app.listen(PORT, () => {
     console.log(`✅ Sunucu http://localhost:${PORT} üzerinde çalışıyor.`);
