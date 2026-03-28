@@ -714,129 +714,171 @@ app.get('/api/dealer/trendyol-categories/:id/attributes-v2', authMiddleware, asy
     }
 }); */
 
+// ── STOK DÜŞME / GERI EKLEME ──────────────────────────────────
+const CANCELLED_STATUSES = new Set(['Cancelled', 'Returned', 'UnDelivered']);
+
+function applyStockChanges(dealerId, orders) {
+    const getApplied = db.prepare('SELECT stock_applied FROM orders WHERE dealer_id = ? AND order_number = ?');
+    const deductStmt = db.prepare(
+        "UPDATE dealer_products SET stock = MAX(0, stock - ?), updated_at = datetime('now') WHERE dealer_id = ? AND barcode = ?"
+    );
+    const restoreStmt = db.prepare(
+        "UPDATE dealer_products SET stock = stock + ?, updated_at = datetime('now') WHERE dealer_id = ? AND barcode = ?"
+    );
+    const markApplied = db.prepare('UPDATE orders SET stock_applied = ? WHERE dealer_id = ? AND order_number = ?');
+
+    const tx = db.transaction(() => {
+        for (const order of orders) {
+            const row = getApplied.get(dealerId, order.order_number);
+            const isCancelled = CANCELLED_STATUSES.has(order.status);
+            const wasApplied = row?.stock_applied === 1;
+
+            if (!isCancelled && !wasApplied) {
+                for (const line of order.lines) {
+                    if (!line.barcode) continue;
+                    deductStmt.run(line.quantity, dealerId, line.barcode);
+                }
+                markApplied.run(1, dealerId, order.order_number);
+            } else if (isCancelled && wasApplied) {
+                for (const line of order.lines) {
+                    if (!line.barcode) continue;
+                    restoreStmt.run(line.quantity, dealerId, line.barcode);
+                }
+                markApplied.run(0, dealerId, order.order_number);
+            }
+        }
+    });
+
+    tx();
+
+    if (process.env.AUTO_PUSH_TRENDYOL_STOCK === 'true') {
+        pushDealerStocksToTrendyol(dealerId).catch(e =>
+            console.error('[Stock] Trendyol push hatası:', e.message)
+        );
+    }
+}
+
+async function syncDealerOrders(dealer) {
+    const dealerId = dealer.id;
+    const authString = Buffer.from(`${dealer.api_key}:${dealer.api_secret}`).toString('base64');
+
+    const response = await axios.get(
+        `https://apigw.trendyol.com/integration/order/sellers/${dealer.supplier_id}/orders?page=0&size=200`,
+        { headers: { 'Authorization': `Basic ${authString}`, 'User-Agent': `${dealer.supplier_id} - SelfIntegration` } }
+    );
+
+    const rawOrders = response.data?.content || [];
+    const grouped = new Map();
+    const getLocalProduct = db.prepare('SELECT stock, image_url, title FROM dealer_products WHERE dealer_id = ? AND barcode = ? LIMIT 1');
+
+    for (const item of rawOrders) {
+        const orderNumber = String(item.orderNumber || '').trim();
+        if (!orderNumber) continue;
+
+        if (!grouped.has(orderNumber)) {
+            const address = item.shipmentAddress || item.address || {};
+            grouped.set(orderNumber, {
+                dealer_id: dealerId,
+                order_number: orderNumber,
+                order_date: item.orderDate ? new Date(item.orderDate).toISOString() : new Date().toISOString(),
+                status: item.status || 'Created',
+                customer_name: [item.customerFirstName, item.customerLastName].filter(Boolean).join(' ').trim() || address.fullName || '-',
+                cargo_company: item.cargoProviderName || item.cargoCompanyName || '-',
+                tracking_number: item.cargoTrackingNumber || item.trackingNumber || '-',
+                shipping_address: [address.fullAddress, address.address1, address.address2, address.district, address.city].filter(Boolean).join(', '),
+                package_number: String(item.packageNumber || item.shipmentPackageId || ''),
+                total_price: Number(item.totalPrice || item.grossAmount || 0),
+                commission: 0,
+                net_price: Number(item.totalPrice || item.grossAmount || 0),
+                product_count: 0,
+                is_refund: /return|refund|iade/i.test(String(item.status || '')) ? 1 : 0,
+                lines: []
+            });
+        }
+
+        const target = grouped.get(orderNumber);
+        const lines = Array.isArray(item.lines) && item.lines.length ? item.lines : [item];
+        for (const line of lines) {
+            const quantity = parseInt(line.quantity || line.amount || 1, 10) || 1;
+            const lineTotal = Number(line.price || line.paidPrice || line.totalPrice || 0);
+            const commission = Number(line.commission || line.tyCommission || 0);
+            const barcode = String(line.barcode || line.productCode || line.merchantSku || '').trim();
+            const localProduct = barcode ? getLocalProduct.get(dealerId, barcode) : null;
+
+            target.product_count += quantity;
+            target.commission += commission;
+            target.lines.push({
+                title: String(line.productName || item.productName || 'Ürün'),
+                barcode,
+                quantity,
+                price: lineTotal,
+                commission,
+                image_url: line.imageUrl || line.image || localProduct?.image_url || '',
+                stock_status: localProduct ? (Number(localProduct.stock || 0) > 0 ? 'Stokta' : 'Tükendi') : 'Bilinmiyor',
+                local_stock: localProduct?.stock ?? null
+            });
+        }
+    }
+
+    const upsertOrder = db.prepare(`
+        INSERT INTO orders (
+            dealer_id, order_number, order_date, status, customer_name, cargo_company, tracking_number, shipping_address, package_number,
+            total_price, commission, net_price, product_count, is_refund, lines_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(dealer_id, order_number) DO UPDATE SET
+            order_date = excluded.order_date,
+            status = excluded.status,
+            customer_name = excluded.customer_name,
+            cargo_company = excluded.cargo_company,
+            tracking_number = excluded.tracking_number,
+            shipping_address = excluded.shipping_address,
+            package_number = excluded.package_number,
+            total_price = excluded.total_price,
+            commission = excluded.commission,
+            net_price = excluded.net_price,
+            product_count = excluded.product_count,
+            is_refund = excluded.is_refund,
+            lines_json = excluded.lines_json
+    `);
+
+    const orders = [...grouped.values()].map(order => ({
+        ...order,
+        net_price: Math.max(0, Number((order.total_price - order.commission).toFixed(2)))
+    }));
+
+    const tx = db.transaction((list) => {
+        for (const order of list) {
+            upsertOrder.run(
+                order.dealer_id, order.order_number, order.order_date, order.status,
+                order.customer_name, order.cargo_company, order.tracking_number, order.shipping_address, order.package_number,
+                order.total_price, order.commission, order.net_price, order.product_count, order.is_refund,
+                JSON.stringify(order.lines)
+            );
+        }
+    });
+    tx(orders);
+
+    applyStockChanges(dealerId, orders);
+
+    addLog('success', `${orders.length} sipariş senkronize edildi`, dealerId);
+    return { synced: orders.length };
+}
+
 app.post('/api/dealer/orders/sync', authMiddleware, async (req, res) => {
     const dealerId = req.dealer.id;
     const { store_id } = req.body;
 
     try {
-        const store = store_id
+        const storeOrDealer = store_id
             ? db.prepare('SELECT * FROM stores WHERE id = ? AND dealer_id = ?').get(store_id, dealerId)
             : db.prepare('SELECT supplier_id, api_key, api_secret FROM dealers WHERE id = ?').get(dealerId);
 
-        if (!store?.supplier_id || !store?.api_key || !store?.api_secret) {
+        if (!storeOrDealer?.supplier_id || !storeOrDealer?.api_key || !storeOrDealer?.api_secret) {
             return res.status(400).json({ error: 'Mağazaya ait API bilgileri eksik' });
         }
 
-        const authString = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
-        const response = await axios.get(
-            `https://apigw.trendyol.com/integration/order/sellers/${store.supplier_id}/orders?page=0&size=200`,
-            { headers: { 'Authorization': `Basic ${authString}`, 'User-Agent': `${store.supplier_id} - SelfIntegration` } }
-        );
-
-        const rawOrders = response.data?.content || [];
-        const grouped = new Map();
-        const getLocalProduct = db.prepare('SELECT stock, image_url, title FROM dealer_products WHERE dealer_id = ? AND barcode = ? LIMIT 1');
-
-        for (const item of rawOrders) {
-            const orderNumber = String(item.orderNumber || '').trim();
-            if (!orderNumber) continue;
-
-            if (!grouped.has(orderNumber)) {
-                const address = item.shipmentAddress || item.address || {};
-                grouped.set(orderNumber, {
-                    dealer_id: dealerId,
-                    order_number: orderNumber,
-                    order_date: item.orderDate ? new Date(item.orderDate).toISOString() : new Date().toISOString(),
-                    status: item.status || 'Created',
-                    customer_name: [item.customerFirstName, item.customerLastName].filter(Boolean).join(' ').trim() || address.fullName || '-',
-                    cargo_company: item.cargoProviderName || item.cargoCompanyName || '-',
-                    tracking_number: item.cargoTrackingNumber || item.trackingNumber || '-',
-                    shipping_address: [address.fullAddress, address.address1, address.address2, address.district, address.city].filter(Boolean).join(', '),
-                    package_number: String(item.packageNumber || item.shipmentPackageId || ''),
-                    total_price: Number(item.totalPrice || item.grossAmount || 0),
-                    commission: 0,
-                    net_price: Number(item.totalPrice || item.grossAmount || 0),
-                    product_count: 0,
-                    is_refund: /return|refund|iade/i.test(String(item.status || '')) ? 1 : 0,
-                    lines: []
-                });
-            }
-
-            const target = grouped.get(orderNumber);
-            const lines = Array.isArray(item.lines) && item.lines.length ? item.lines : [item];
-            for (const line of lines) {
-                const quantity = parseInt(line.quantity || line.amount || 1, 10) || 1;
-                const lineTotal = Number(line.price || line.paidPrice || line.totalPrice || 0);
-                const commission = Number(line.commission || line.tyCommission || 0);
-                const barcode = String(line.barcode || line.productCode || line.merchantSku || '').trim();
-                const localProduct = barcode ? getLocalProduct.get(dealerId, barcode) : null;
-
-                target.product_count += quantity;
-                target.commission += commission;
-                target.lines.push({
-                    title: String(line.productName || item.productName || 'Ürün'),
-                    barcode,
-                    quantity,
-                    price: lineTotal,
-                    commission,
-                    image_url: line.imageUrl || line.image || localProduct?.image_url || '',
-                    stock_status: localProduct ? (Number(localProduct.stock || 0) > 0 ? 'Stokta' : 'Tükendi') : 'Bilinmiyor',
-                    local_stock: localProduct?.stock ?? null
-                });
-            }
-        }
-
-        const upsertOrder = db.prepare(`
-            INSERT INTO orders (
-                dealer_id, order_number, order_date, status, customer_name, cargo_company, tracking_number, shipping_address, package_number,
-                total_price, commission, net_price, product_count, is_refund, lines_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(dealer_id, order_number) DO UPDATE SET
-                order_date = excluded.order_date,
-                status = excluded.status,
-                customer_name = excluded.customer_name,
-                cargo_company = excluded.cargo_company,
-                tracking_number = excluded.tracking_number,
-                shipping_address = excluded.shipping_address,
-                package_number = excluded.package_number,
-                total_price = excluded.total_price,
-                commission = excluded.commission,
-                net_price = excluded.net_price,
-                product_count = excluded.product_count,
-                is_refund = excluded.is_refund,
-                lines_json = excluded.lines_json
-        `);
-
-        const orders = [...grouped.values()].map(order => ({
-            ...order,
-            net_price: Math.max(0, Number((order.total_price - order.commission).toFixed(2)))
-        }));
-
-        const tx = db.transaction((list) => {
-            for (const order of list) {
-                upsertOrder.run(
-                    order.dealer_id,
-                    order.order_number,
-                    order.order_date,
-                    order.status,
-                    order.customer_name,
-                    order.cargo_company,
-                    order.tracking_number,
-                    order.shipping_address,
-                    order.package_number,
-                    order.total_price,
-                    order.commission,
-                    order.net_price,
-                    order.product_count,
-                    order.is_refund,
-                    JSON.stringify(order.lines)
-                );
-            }
-        });
-        tx(orders);
-
-        addLog('success', `${orders.length} sipariş senkronize edildi`, dealerId);
-        res.json({ ok: true, synced: orders.length });
+        const result = await syncDealerOrders({ id: dealerId, ...storeOrDealer });
+        res.json({ ok: true, ...result });
     } catch (e) {
         addLog('error', `Sipariş sync hatası: ${e.message}`, dealerId);
         res.status(500).json({ error: e.message });
