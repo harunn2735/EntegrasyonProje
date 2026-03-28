@@ -103,6 +103,7 @@ function initDb() {
       product_count INTEGER DEFAULT 1,
       is_refund INTEGER DEFAULT 0,
       lines_json TEXT DEFAULT '[]',
+      stock_applied INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT (datetime('now')),
       FOREIGN KEY (dealer_id) REFERENCES dealers(id)
     );
@@ -178,6 +179,7 @@ function initDb() {
   safeAlter(`ALTER TABLE orders ADD COLUMN shipping_address TEXT`);
   safeAlter(`ALTER TABLE orders ADD COLUMN package_number TEXT`);
   safeAlter(`ALTER TABLE orders ADD COLUMN lines_json TEXT DEFAULT '[]'`);
+  safeAlter(`ALTER TABLE orders ADD COLUMN stock_applied INTEGER DEFAULT 0`);
   try {
     db.exec(`
       DELETE FROM orders
