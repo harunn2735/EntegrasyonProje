@@ -10,6 +10,7 @@ const db = require('./database');
 const orderDetailRouter = require('./routes/orderDetail');
 const questionsRouter = require('./routes/questions');
 const startQuestionsCron = require('./cron/questionsCron');
+const startOrdersCron = require('./cron/ordersCron');
 
 require('dotenv').config();
 
@@ -2376,6 +2377,7 @@ app.get('/admin', (req, res) => {
 });
 
 startQuestionsCron();
+startOrdersCron(syncDealerOrders);
 
 app.listen(PORT, () => {
     console.log(`✅ Sunucu http://localhost:${PORT} üzerinde çalışıyor.`);
