@@ -691,6 +691,233 @@
       margin-top: 2px
     }
 
+    .orders-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 18px
+    }
+
+    #page-orders>.section-header,
+    #page-orders>.table-wrap,
+    #page-orders>.orders-footer {
+      display: none
+    }
+
+    [data-legacy-orders="true"] {
+      display: none
+    }
+
+    .orders-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 4px
+    }
+
+    .orders-heading h2 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 6px
+    }
+
+    .orders-updated {
+      color: var(--muted);
+      font-size: 13px
+    }
+
+    .orders-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end
+    }
+
+    .orders-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px
+    }
+
+    .metric-card {
+      background: #fbfaf6;
+      border: 1px solid #efe8d9;
+      border-radius: 14px;
+      padding: 18px 16px;
+      min-height: 110px
+    }
+
+    .metric-card.warning {
+      background: #fff7ed;
+      border-color: #fdba74
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 12px
+    }
+
+    .metric-value {
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 8px
+    }
+
+    .metric-note {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500
+    }
+
+    .metric-note.positive {
+      color: var(--green)
+    }
+
+    .metric-note.warning {
+      color: var(--yellow)
+    }
+
+    .orders-filters {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px
+    }
+
+    .orders-filter-grid {
+      display: grid;
+      grid-template-columns: 2fr repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px
+    }
+
+    .orders-filter-grid input,
+    .orders-filter-grid select {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit
+    }
+
+    .orders-filter-grid input:focus,
+    .orders-filter-grid select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108, 99, 255, .12)
+    }
+
+    .orders-type-toggle {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap
+    }
+
+    .segmented-btn {
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: .2s
+    }
+
+    .segmented-btn.active {
+      background: #f4efe5;
+      border-color: #d6c5a4
+    }
+
+    .orders-table-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden
+    }
+
+    .orders-table-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 14px 0
+    }
+
+    .orders-table-card .table-wrap {
+      border: none;
+      border-radius: 0
+    }
+
+    .sortable {
+      cursor: pointer;
+      user-select: none
+    }
+
+    .sortable.active {
+      color: var(--text)
+    }
+
+    .orders-customer {
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .customer-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0
+    }
+
+    .customer-name {
+      font-weight: 500
+    }
+
+    .amount-old {
+      color: var(--muted);
+      text-decoration: line-through;
+      font-size: 12px
+    }
+
+    .amount-net {
+      color: #0f9f6e;
+      font-weight: 700
+    }
+
+    .badge-neutral {
+      background: rgba(148, 163, 184, .16);
+      color: #475569
+    }
+
+    .orders-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px
+    }
+
+    .orders-empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 32px
+    }
+
     @media(max-width:900px) {
       .sidebar {
         display: none
@@ -707,6 +934,23 @@
 
       .grid-2 {
         grid-template-columns: 1fr
+      }
+
+      .orders-heading,
+      .orders-actions,
+      .orders-footer {
+        flex-direction: column;
+        align-items: stretch
+      }
+
+      .orders-metrics,
+      .orders-filter-grid {
+        grid-template-columns: 1fr
+      }
+
+      .orders-table-actions {
+        justify-content: stretch;
+        flex-direction: column
       }
     }
   </style>
@@ -754,6 +998,7 @@
         </div>
         <div class="nav-item" onclick="navigate('stores')" id="nav-stores"><span class="icon">🏪</span>Mağazalarım</div>
         <div class="nav-item" onclick="navigate('orders')" id="nav-orders"><span class="icon">📋</span>Siparişler</div>
+        <div class="nav-item" onclick="navigate('questions')" id="nav-questions"><span class="icon">💬</span>Sorular</div>
         <div class="nav-item" onclick="navigate('settings')" id="nav-settings"><span class="icon">⚙️</span>Trendyol
           Ayarları</div>
       </nav>
@@ -947,7 +1192,90 @@
 
         <!-- SİPARİŞLER -->
         <div class="page" id="page-orders">
-          <div class="section-header">
+          <div class="orders-panel">
+            <div class="orders-heading">
+              <div>
+                <h2>Siparişlerim</h2>
+                <div class="orders-updated" id="orders-last-sync">Son güncelleme: -</div>
+              </div>
+              <div class="orders-actions">
+                <button class="btn btn-ghost" onclick="syncOrders()" id="orders-sync-btn">Trendyol'dan Çek</button>
+              </div>
+            </div>
+            <div class="orders-metrics">
+              <div class="metric-card">
+                <div class="metric-label">Toplam Sipariş</div>
+                <div class="metric-value" id="orders-metric-total">0</div>
+                <div class="metric-note positive">Tüm kayıtlar</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Toplam Ciro</div>
+                <div class="metric-value" id="orders-metric-revenue">₺0,00</div>
+                <div class="metric-note positive">Brüt tutar</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Net Kazanç</div>
+                <div class="metric-value" id="orders-metric-net">₺0,00</div>
+                <div class="metric-note">Komisyon sonrası</div>
+              </div>
+              <div class="metric-card warning">
+                <div class="metric-label">Bekleyen (Picking)</div>
+                <div class="metric-value" id="orders-metric-picking" style="color:var(--yellow)">0</div>
+                <div class="metric-note warning">Hazırlanıyor</div>
+              </div>
+            </div>
+            <div class="orders-filters">
+              <div class="orders-filter-grid">
+                <input id="orders-search" placeholder="Sipariş no veya müşteri ara..." oninput="onOrdersSearchInput()" />
+                <select id="orders-status" onchange="applyOrdersFilters()">
+                  <option value="">Tüm Durumlar</option>
+                  <option value="Shipped">Gönderildi</option>
+                  <option value="Picking">Toplandı</option>
+                  <option value="Cancelled">İptal Edildi</option>
+                </select>
+                <input id="orders-date-from" type="date" onchange="applyOrdersFilters()" />
+                <input id="orders-date-to" type="date" onchange="applyOrdersFilters()" />
+                <select id="orders-type" onchange="applyOrdersFilters()">
+                  <option value="">Tüm Türler</option>
+                  <option value="sale">Satış</option>
+                  <option value="refund">İade</option>
+                </select>
+              </div>
+              <div class="orders-type-toggle">
+                <button class="segmented-btn active" data-type="" onclick="setOrderTypeFilter('')">Tümü</button>
+                <button class="segmented-btn" data-type="sale" onclick="setOrderTypeFilter('sale')">Satış</button>
+                <button class="segmented-btn" data-type="refund" onclick="setOrderTypeFilter('refund')">İade</button>
+              </div>
+            </div>
+            <div class="orders-table-card">
+              <div class="orders-table-actions">
+                <button class="btn btn-ghost" onclick="exportOrdersExcel()">Excel</button>
+                <button class="btn btn-ghost" onclick="exportOrdersCsv()">CSV</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th class="sortable" data-sort="order_number" onclick="toggleOrderSort('order_number')">Sipariş No</th>
+                      <th class="sortable" data-sort="order_date" onclick="toggleOrderSort('order_date')">Tarih</th>
+                      <th>Müşteri</th>
+                      <th class="sortable" data-sort="status" onclick="toggleOrderSort('status')">Durum</th>
+                      <th class="sortable" data-sort="product_count" onclick="toggleOrderSort('product_count')">Adet</th>
+                      <th class="sortable" data-sort="total_price" onclick="toggleOrderSort('total_price')">Toplam</th>
+                      <th class="sortable" data-sort="net_price" onclick="toggleOrderSort('net_price')">Net</th>
+                      <th>Tür</th>
+                    </tr>
+                  </thead>
+                  <tbody id="orders-tbody"></tbody>
+                </table>
+              </div>
+              <div class="orders-footer">
+                <div id="orders-count">0 / 0 sipariş gösteriliyor</div>
+                <div id="orders-sort-label">Sıralama: Tarih</div>
+              </div>
+            </div>
+          </div>
+          <div class="section-header" data-legacy-orders="true">
             <h2>Siparişlerim</h2>
             <button class="btn btn-ghost" onclick="syncOrders()">🔄 Trendyol'dan Çek</button>
           </div>
@@ -963,10 +1291,18 @@
                   <th>Tür</th>
                 </tr>
               </thead>
-              <tbody id="orders-tbody"></tbody>
-            </table>
+                  <tbody id="orders-tbody-legacy"></tbody>
+                </table>
+              </div>
+              <div class="orders-footer" data-legacy-orders="true">
+                <div id="orders-count-legacy">0 / 0 sipariş gösteriliyor</div>
+                <div id="orders-sort-label-legacy">Sıralama: Tarih</div>
+              </div>
+            </div>
           </div>
         </div>
+
+        <div class="page" id="page-questions"></div>
 
         <!-- TRENDYOL AYARLARI -->
         <div class="page" id="page-settings">
@@ -1070,6 +1406,8 @@
     let DEALER = JSON.parse(localStorage.getItem('dealer_info') || 'null');
     let prodPage = 1;
     let pendingStocks = {};
+    let orderSearchTimer = null;
+    let orderFilters = { search: '', status: '', dateFrom: '', dateTo: '', type: '', sort: 'order_date', dir: 'desc' };
 
     // ─── AUTH ───
     async function doLogin() {
@@ -1151,7 +1489,7 @@
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       document.getElementById('page-' + page)?.classList.add('active');
       document.getElementById('nav-' + page)?.classList.add('active');
-      const titles = { dashboard: 'Dashboard', xml: 'XML Feedler', products: 'Ürünlerim', margins: 'Kâr Marjları', profitloss: 'Kâr / Zarar Analizi', stores: 'Mağazalarım', orders: 'Siparişler', settings: 'Trendyol Ayarları' };
+      const titles = { dashboard: 'Dashboard', xml: 'XML Feedler', products: 'Ürünlerim', margins: 'Kâr Marjları', profitloss: 'Kâr / Zarar Analizi', stores: 'Mağazalarım', orders: 'Siparişler', questions: 'Müşteri Soruları', settings: 'Trendyol Ayarları' };
       document.getElementById('page-title').textContent = titles[page] || page;
       if (page === 'dashboard') loadDashboard();
       if (page === 'xml') loadXmlFeeds();
@@ -1160,6 +1498,7 @@
       if (page === 'profitloss') loadProfitLoss();
       if (page === 'stores') loadStores();
       if (page === 'orders') loadOrders();
+      if (page === 'questions') loadQuestions();
       if (page === 'settings') loadSettings();
     }
 
@@ -1498,7 +1837,7 @@
         if (!d) return;
         const tbody = document.getElementById('orders-tbody');
         if (!d.orders.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Sipariş bulunamadı. Trendyol\'dan çekmeyi deneyin.</td></tr>'; return; }
-        tbody.innerHTML = d.orders.map(o => `<tr>
+        tbody.innerHTML = d.orders.map(o => `<tr data-order-number="${esc(o.order_number)}" style="cursor:pointer">
       <td style="font-weight:600">${esc(o.order_number)}</td>
       <td>${o.order_date ? new Date(o.order_date).toLocaleDateString('tr') : '-'}</td>
       <td><span class="badge badge-blue">${esc(o.status)}</span></td>
@@ -1517,6 +1856,220 @@
     }
 
     // ─── HELPERS ───
+    function buildOrdersQuery(limit = 50) {
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (orderFilters.search) params.set('search', orderFilters.search);
+      if (orderFilters.status) params.set('status', orderFilters.status);
+      if (orderFilters.dateFrom) params.set('date_from', orderFilters.dateFrom);
+      if (orderFilters.dateTo) params.set('date_to', orderFilters.dateTo);
+      if (orderFilters.type) params.set('type', orderFilters.type);
+      if (orderFilters.sort) params.set('sort', orderFilters.sort);
+      if (orderFilters.dir) params.set('dir', orderFilters.dir);
+      return params.toString();
+    }
+
+    function formatMoney(val) {
+      return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(Number(val || 0));
+    }
+
+    function formatDate(val) {
+      if (!val) return '-';
+      const date = new Date(val);
+      if (Number.isNaN(date.getTime())) return '-';
+      return date.toLocaleDateString('tr-TR');
+    }
+
+    function formatDateTime(val) {
+      if (!val) return '-';
+      const date = new Date(val);
+      if (Number.isNaN(date.getTime())) return '-';
+      return date.toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' });
+    }
+
+    function orderStatusMeta(status) {
+      const map = {
+        Picking: { label: 'Picking', cls: 'badge-yellow' },
+        Shipped: { label: 'Shipped', cls: 'badge-green' },
+        Cancelled: { label: 'Cancelled', cls: 'badge-red' }
+      };
+      return map[status] || { label: status || '-', cls: 'badge-neutral' };
+    }
+
+    function getInitials(name) {
+      return String(name || '?').trim().split(/\s+/).slice(0, 2).map(part => part[0] || '').join('').toUpperCase();
+    }
+
+    function getAvatarStyle(name) {
+      const text = String(name || '');
+      let hash = 0;
+      for (let i = 0; i < text.length; i++) hash = text.charCodeAt(i) + ((hash << 5) - hash);
+      const hue = Math.abs(hash) % 360;
+      return `background:hsl(${hue} 70% 92%);color:hsl(${hue} 55% 36%)`;
+    }
+
+    function applyOrdersFilters() {
+      orderFilters.status = document.getElementById('orders-status').value;
+      orderFilters.dateFrom = document.getElementById('orders-date-from').value;
+      orderFilters.dateTo = document.getElementById('orders-date-to').value;
+      orderFilters.type = document.getElementById('orders-type').value;
+      syncOrderTypeButtons();
+      loadOrders();
+    }
+
+    function onOrdersSearchInput() {
+      orderFilters.search = document.getElementById('orders-search').value.trim();
+      clearTimeout(orderSearchTimer);
+      orderSearchTimer = setTimeout(loadOrders, 180);
+    }
+
+    function setOrderTypeFilter(type) {
+      orderFilters.type = type;
+      document.getElementById('orders-type').value = type;
+      syncOrderTypeButtons();
+      loadOrders();
+    }
+
+    function syncOrderTypeButtons() {
+      document.querySelectorAll('.segmented-btn[data-type]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === orderFilters.type);
+      });
+    }
+
+    function toggleOrderSort(sortKey) {
+      if (orderFilters.sort === sortKey) {
+        orderFilters.dir = orderFilters.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        orderFilters.sort = sortKey;
+        orderFilters.dir = sortKey === 'order_date' ? 'desc' : 'asc';
+      }
+      loadOrders();
+    }
+
+    function updateOrderSortState() {
+      const sortLabels = {
+        order_number: 'Sipariş No',
+        order_date: 'Tarih',
+        status: 'Durum',
+        product_count: 'Adet',
+        total_price: 'Toplam',
+        net_price: 'Net'
+      };
+      document.querySelectorAll('th.sortable').forEach(th => {
+        const active = th.dataset.sort === orderFilters.sort;
+        th.classList.toggle('active', active);
+        const baseText = th.textContent.replace(/[↑↓]/g, '').trim();
+        th.textContent = active ? `${baseText} ${orderFilters.dir === 'asc' ? '↑' : '↓'}` : baseText;
+      });
+      document.getElementById('orders-sort-label').textContent = `Sıralama: ${sortLabels[orderFilters.sort] || 'Tarih'} (${orderFilters.dir === 'asc' ? 'artan' : 'azalan'})`;
+    }
+
+    function renderOrderStats(stats = {}) {
+      document.getElementById('orders-metric-total').textContent = String(stats.totalOrders || 0);
+      document.getElementById('orders-metric-revenue').textContent = formatMoney(stats.totalRevenue || 0);
+      document.getElementById('orders-metric-net').textContent = formatMoney(stats.netRevenue || 0);
+      document.getElementById('orders-metric-picking').textContent = String(stats.pickingCount || 0);
+      document.getElementById('orders-last-sync').textContent = `Son güncelleme: ${formatDateTime(stats.lastSyncAt)}`;
+    }
+
+    async function loadOrders() {
+      try {
+        updateOrderSortState();
+        const d = await api('/api/dealer/orders?' + buildOrdersQuery(50));
+        if (!d) return;
+        renderOrderStats(d.stats || {});
+        const tbody = document.getElementById('orders-tbody');
+        document.getElementById('orders-count').textContent = `${d.orders.length} / ${d.total || d.orders.length} sipariş gösteriliyor`;
+        if (!d.orders.length) {
+          tbody.innerHTML = '<tr><td colspan="8" class="orders-empty">Sipariş bulunamadı. Filtreleri temizleyin veya Trendyol\'dan yeniden çekin.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = d.orders.map(o => {
+          const status = orderStatusMeta(o.status);
+          return `<tr data-order-number="${esc(o.order_number)}" style="cursor:pointer">
+      <td style="font-weight:600">${esc(o.order_number)}</td>
+      <td>${formatDate(o.order_date)}</td>
+      <td>
+        <div class="orders-customer">
+          <span class="customer-avatar" style="${getAvatarStyle(o.customer_name)}">${esc(getInitials(o.customer_name))}</span>
+          <span class="customer-name">${esc(o.customer_name || '-')}</span>
+        </div>
+      </td>
+      <td><span class="badge ${status.cls}">${esc(status.label)}</span></td>
+      <td>${Number(o.product_count || 0)}</td>
+      <td><span class="amount-old">${formatMoney(o.total_price || 0)}</span></td>
+      <td><span class="amount-net">${formatMoney(o.net_price || 0)}</span></td>
+      <td><span class="badge ${o.is_refund ? 'badge-red' : 'badge-neutral'}">${o.is_refund ? 'İade' : 'Satış'}</span></td>
+    </tr>`;
+        }).join('');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function fetchOrdersForExport() {
+      const d = await api('/api/dealer/orders?' + buildOrdersQuery(500));
+      return d?.orders || [];
+    }
+
+    function downloadBlob(filename, content, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function exportOrdersCsv() {
+      try {
+        const orders = await fetchOrdersForExport();
+        const rows = [
+          ['Sipariş No', 'Tarih', 'Müşteri', 'Durum', 'Adet', 'Toplam', 'Net', 'Tür'],
+          ...orders.map(o => [o.order_number, formatDate(o.order_date), o.customer_name || '', o.status || '', Number(o.product_count || 0), Number(o.total_price || 0).toFixed(2), Number(o.net_price || 0).toFixed(2), o.is_refund ? 'İade' : 'Satış'])
+        ];
+        const csv = '\uFEFF' + rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
+        downloadBlob(`siparisler-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv;charset=utf-8;');
+      } catch (e) { toast('CSV dışa aktarma başarısız: ' + e.message, 'error'); }
+    }
+
+    async function exportOrdersExcel() {
+      try {
+        const orders = await fetchOrdersForExport();
+        const tableRows = orders.map(o => `<tr>
+          <td>${esc(o.order_number)}</td>
+          <td>${esc(formatDate(o.order_date))}</td>
+          <td>${esc(o.customer_name || '')}</td>
+          <td>${esc(o.status || '')}</td>
+          <td>${Number(o.product_count || 0)}</td>
+          <td>${esc(formatMoney(o.total_price || 0))}</td>
+          <td>${esc(formatMoney(o.net_price || 0))}</td>
+          <td>${o.is_refund ? 'İade' : 'Satış'}</td>
+        </tr>`).join('');
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><table border="1"><tr><th>Sipariş No</th><th>Tarih</th><th>Müşteri</th><th>Durum</th><th>Adet</th><th>Toplam</th><th>Net</th><th>Tür</th></tr>${tableRows}</table></body></html>`;
+        downloadBlob(`siparisler-${new Date().toISOString().slice(0, 10)}.xls`, '\uFEFF' + html, 'application/vnd.ms-excel;charset=utf-8;');
+      } catch (e) { toast('Excel dışa aktarma başarısız: ' + e.message, 'error'); }
+    }
+
+    async function syncOrders() {
+      const btn = document.getElementById('orders-sync-btn');
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'Çekiliyor...';
+        }
+        const r = await api('/api/dealer/orders/sync', { method: 'POST', body: JSON.stringify({}) });
+        toast(`${r.synced} sipariş senkronize edildi`, 'success');
+        loadOrders();
+      } catch (e) { toast('Hata: ' + e.message, 'error'); }
+      finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Trendyol'dan Çek";
+        }
+      }
+    }
+
     async function loadSupplierFilters() {
       try {
         const suppliers = await api('/api/dealer/suppliers');
@@ -1549,6 +2102,8 @@
       }
     });
   </script>
+  <script src="/js/orderModal.js"></script>
+  <script src="/js/questionsPage.js"></script>
 </body>
 
 </html>
