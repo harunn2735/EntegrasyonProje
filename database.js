@@ -68,7 +68,12 @@ function initDb() {
       title TEXT NOT NULL,
       category TEXT,
       stock INTEGER DEFAULT 0,
+      critical_stock_level INTEGER DEFAULT 5,
+      last_remote_stock INTEGER,
+      last_stock_sync_at DATETIME,
+      last_stock_alert_at DATETIME,
       cost_price REAL DEFAULT 0,
+      xml_category_id INTEGER,
       sale_price REAL DEFAULT 0,
       image_url TEXT,
       supplier_name TEXT DEFAULT 'Genel',
@@ -87,12 +92,34 @@ function initDb() {
       order_number TEXT,
       order_date DATETIME,
       status TEXT DEFAULT 'Created',
+      customer_name TEXT,
+      cargo_company TEXT,
+      tracking_number TEXT,
+      shipping_address TEXT,
+      package_number TEXT,
       total_price REAL DEFAULT 0,
       commission REAL DEFAULT 0,
       net_price REAL DEFAULT 0,
       product_count INTEGER DEFAULT 1,
       is_refund INTEGER DEFAULT 0,
+      lines_json TEXT DEFAULT '[]',
       created_at DATETIME DEFAULT (datetime('now')),
+      FOREIGN KEY (dealer_id) REFERENCES dealers(id)
+    );
+
+    -- Müşteri sorularıyla ilgili veriler
+    CREATE TABLE IF NOT EXISTS questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dealer_id INTEGER NOT NULL,
+      question_id TEXT NOT NULL,
+      product_name TEXT,
+      question_text TEXT NOT NULL,
+      ai_answer TEXT,
+      status TEXT DEFAULT 'pending',
+      asked_at DATETIME,
+      sent_at DATETIME,
+      created_at DATETIME DEFAULT (datetime('now')),
+      UNIQUE(dealer_id, question_id),
       FOREIGN KEY (dealer_id) REFERENCES dealers(id)
     );
 
@@ -119,6 +146,21 @@ function initDb() {
       UNIQUE(dealer_id, supplier_name),
       FOREIGN KEY (dealer_id) REFERENCES dealers(id)
     );
+
+    CREATE TABLE IF NOT EXISTS category_mappings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dealer_id INTEGER NOT NULL,
+      xml_feed_id INTEGER,
+      source_category TEXT NOT NULL,
+      trendyol_category_id INTEGER,
+      trendyol_category_name TEXT,
+      attribute_values TEXT DEFAULT '{}',
+      created_at DATETIME DEFAULT (datetime('now')),
+      updated_at DATETIME DEFAULT (datetime('now')),
+      UNIQUE(dealer_id, xml_feed_id, source_category),
+      FOREIGN KEY (dealer_id) REFERENCES dealers(id),
+      FOREIGN KEY (xml_feed_id) REFERENCES xml_feeds(id)
+    );
   `);
 
   // Mevcut sütunları güvenli şekilde ekle
@@ -128,6 +170,31 @@ function initDb() {
   safeAlter(`ALTER TABLE dealers ADD COLUMN password_hash TEXT`);
   safeAlter(`ALTER TABLE dealers ADD COLUMN created_at DATETIME DEFAULT (datetime('now'))`);
   safeAlter(`ALTER TABLE logs ADD COLUMN dealer_id INTEGER`);
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN xml_category_id INTEGER`);
+  safeAlter(`ALTER TABLE category_mappings ADD COLUMN xml_feed_id INTEGER`);
+  safeAlter(`ALTER TABLE orders ADD COLUMN customer_name TEXT`);
+  safeAlter(`ALTER TABLE orders ADD COLUMN cargo_company TEXT`);
+  safeAlter(`ALTER TABLE orders ADD COLUMN tracking_number TEXT`);
+  safeAlter(`ALTER TABLE orders ADD COLUMN shipping_address TEXT`);
+  safeAlter(`ALTER TABLE orders ADD COLUMN package_number TEXT`);
+  safeAlter(`ALTER TABLE orders ADD COLUMN lines_json TEXT DEFAULT '[]'`);
+  try {
+    db.exec(`
+      DELETE FROM orders
+      WHERE id NOT IN (
+        SELECT MAX(id)
+        FROM orders
+        GROUP BY dealer_id, order_number
+      );
+    `);
+  } catch (e) { }
+  try {
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_dealer_order_number ON orders(dealer_id, order_number)`);
+  } catch (e) { }
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN critical_stock_level INTEGER DEFAULT 5`);
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN last_remote_stock INTEGER`);
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN last_stock_sync_at DATETIME`);
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN last_stock_alert_at DATETIME`);
 
   // Varsayılan admin hesabı oluştur (mevcut bayilere şifre yoksa)
   const dealers = db.prepare('SELECT id, email FROM dealers WHERE password_hash IS NULL').all();
