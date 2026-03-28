@@ -9,6 +9,7 @@ const { XMLParser } = require('fast-xml-parser');
 const db = require('./database');
 const orderDetailRouter = require('./routes/orderDetail');
 const questionsRouter = require('./routes/questions');
+const forecastRouter = require('./routes/forecast');
 const startQuestionsCron = require('./cron/questionsCron');
 const startOrdersCron = require('./cron/ordersCron');
 
@@ -1669,6 +1670,7 @@ app.get('/api/dealer/orders', authMiddleware, (req, res) => {
 
 app.use('/api/orders', authMiddleware, orderDetailRouter);
 app.use('/api/questions', authMiddleware, questionsRouter);
+app.use('/api/forecast', authMiddleware, forecastRouter);
 
 app.get('/api/dealer/orders/:orderNumber', authMiddleware, (req, res) => {
     const dealerId = req.dealer.id;
