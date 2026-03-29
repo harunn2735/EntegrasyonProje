@@ -1195,138 +1195,126 @@ app.post('/api/dealer/trendyol-upload/precheck', authMiddleware, async (req, res
     }
 });
 
-app.post('/api/dealer/xml-feeds/:id/import', authMiddleware, async (req, res) => {
-    const dealerId = req.dealer.id;
-    const feedId = req.params.id;
+async function importXmlFeedById(dealerId, feedId) {
+    const feed = db.prepare('SELECT * FROM xml_feeds WHERE id = ? AND dealer_id = ?').get(feedId, dealerId);
+    if (!feed) throw new Error('XML feed bulunamadı');
 
-    try {
-        const feed = db.prepare('SELECT * FROM xml_feeds WHERE id = ? AND dealer_id = ?').get(feedId, dealerId);
-        if (!feed) return res.status(404).json({ error: 'XML feed bulunamadı' });
+    const response = await axios.get(feed.url, { timeout: 30000, responseType: 'text' });
+    const xmlText = response.data;
 
-        // XML'i indir
-        const response = await axios.get(feed.url, { timeout: 30000, responseType: 'text' });
-        const xmlText = response.data;
+    const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
+    const parsed = parser.parse(xmlText);
 
-        // Parse et
-        const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@_' });
-        const parsed = parser.parse(xmlText);
+    let items = [];
+    const root = parsed;
+    const tryPaths = [
+        root?.catalog?.product,
+        root?.products?.product,
+        root?.items?.item,
+        root?.ProductList?.Product,
+        root?.feed?.entry,
+        Object.values(root || {})?.[0]?.product,
+        Object.values(root || {})?.[0],
+    ];
+    for (const p of tryPaths) {
+        if (Array.isArray(p)) { items = p; break; }
+        if (p && typeof p === 'object' && !Array.isArray(p)) { items = [p]; break; }
+    }
+    if (items.length === 0) throw new Error('XML formatı tanınamadı veya ürün bulunamadı');
 
-        // Farklı XML formatlarını destekle
-        let items = [];
-        const root = parsed;
+    const marginRow = db.prepare('SELECT margin FROM supplier_margins WHERE dealer_id = ? AND supplier_name = ?')
+        .get(dealerId, feed.supplier_name);
+    const dealer = db.prepare('SELECT profit_margin FROM dealers WHERE id = ?').get(dealerId);
+    const margin = marginRow?.margin ?? dealer?.profit_margin ?? 20;
 
-        // Yaygın XML yapılarını dene
-        const tryPaths = [
-            root?.catalog?.product,
-            root?.products?.product,
-            root?.items?.item,
-            root?.ProductList?.Product,
-            root?.feed?.entry,
-            Object.values(root || {})?.[0]?.product,
-            Object.values(root || {})?.[0],
-        ];
+    const insertOrUpdate = db.prepare(`
+        INSERT INTO dealer_products (dealer_id, barcode, title, category, xml_category_id, stock, cost_price, sale_price, image_url, supplier_name, xml_feed_id)
+        VALUES (@dealer_id, @barcode, @title, @category, @xml_category_id, @stock, @cost_price, @sale_price, @image_url, @supplier_name, @xml_feed_id)
+        ON CONFLICT(dealer_id, barcode) DO UPDATE SET
+            title = excluded.title,
+            category = excluded.category,
+            xml_category_id = excluded.xml_category_id,
+            stock = excluded.stock,
+            cost_price = excluded.cost_price,
+            sale_price = excluded.sale_price,
+            image_url = excluded.image_url,
+            updated_at = datetime('now')
+    `);
+    const getCategoryMapping = db.prepare(`
+        SELECT trendyol_category_id
+        FROM category_mappings
+        WHERE dealer_id = ? AND source_category = ? AND (xml_feed_id = ? OR xml_feed_id IS NULL)
+        ORDER BY CASE WHEN xml_feed_id = ? THEN 0 ELSE 1 END
+        LIMIT 1
+    `);
 
-        for (const p of tryPaths) {
-            if (Array.isArray(p)) { items = p; break; }
-            if (p && typeof p === 'object' && !Array.isArray(p)) { items = [p]; break; }
-        }
+    const importMany = db.transaction((prods) => {
+        for (const p of prods) {
+            const barcode = String(p.barcode || p.Barcode || p.sku || p.SKU || p.code || p.Code || p['@_id'] || '').trim();
+            const title = String(p.title || p.Title || p.name || p.Name || p.baslik || '').trim();
+            if (!barcode || !title) continue;
 
-        if (items.length === 0) {
-            return res.status(400).json({ error: 'XML formatı tanınamadı veya ürün bulunamadı' });
-        }
+            const costPrice = parseFloat(p.price || p.Price || p.cost_price || p.fiyat || 0);
+            const salePrice = parseFloat((costPrice * (1 + margin / 100)).toFixed(2));
+            const stock = parseInt(p.stock || p.Stock || p.quantity || p.stok || 0);
+            const xmlCategoryCandidates = getXmlCategoryCandidates(p);
+            const category = xmlCategoryCandidates[0] || 'Genel';
+            const savedMapping = getCategoryMapping.get(dealerId, category, parseInt(feedId), parseInt(feedId));
+            const xmlCategoryId = savedMapping?.trendyol_category_id || getTrendyolCategoryByName(xmlCategoryCandidates) || null;
 
-        // Bayi'nin kâr marjını al (tedarikçi bazlı veya genel)
-        const marginRow = db.prepare('SELECT margin FROM supplier_margins WHERE dealer_id = ? AND supplier_name = ?')
-            .get(dealerId, feed.supplier_name);
-        const dealer = db.prepare('SELECT profit_margin FROM dealers WHERE id = ?').get(dealerId);
-        const margin = marginRow?.margin ?? dealer?.profit_margin ?? 20;
-
-        const insertOrUpdate = db.prepare(`
-            INSERT INTO dealer_products (dealer_id, barcode, title, category, xml_category_id, stock, cost_price, sale_price, image_url, supplier_name, xml_feed_id)
-            VALUES (@dealer_id, @barcode, @title, @category, @xml_category_id, @stock, @cost_price, @sale_price, @image_url, @supplier_name, @xml_feed_id)
-            ON CONFLICT(dealer_id, barcode) DO UPDATE SET
-                title = excluded.title,
-                category = excluded.category,
-                xml_category_id = excluded.xml_category_id,
-                stock = excluded.stock,
-                cost_price = excluded.cost_price,
-                sale_price = excluded.sale_price,
-                image_url = excluded.image_url,
-                updated_at = datetime('now')
-        `);
-        const getCategoryMapping = db.prepare(`
-            SELECT trendyol_category_id
-            FROM category_mappings
-            WHERE dealer_id = ? AND source_category = ? AND (xml_feed_id = ? OR xml_feed_id IS NULL)
-            ORDER BY CASE WHEN xml_feed_id = ? THEN 0 ELSE 1 END
-            LIMIT 1
-        `);
-
-        const importMany = db.transaction((prods) => {
-            for (const p of prods) {
-                // Esnek alan eşleştirme
-                const barcode = String(p.barcode || p.Barcode || p.sku || p.SKU || p.code || p.Code || p['@_id'] || '').trim();
-                const title = String(p.title || p.Title || p.name || p.Name || p.baslik || '').trim();
-                if (!barcode || !title) continue;
-
-                const costPrice = parseFloat(p.price || p.Price || p.cost_price || p.fiyat || 0);
-                const salePrice = parseFloat((costPrice * (1 + margin / 100)).toFixed(2));
-                const stock = parseInt(p.stock || p.Stock || p.quantity || p.stok || 0);
-                const xmlCategoryCandidates = getXmlCategoryCandidates(p);
-                const category = xmlCategoryCandidates[0] || 'Genel';
-                // XML'deki sub_category/top_category isimlerini gerçek Trendyol ID'sine dönüştür
-                const savedMapping = getCategoryMapping.get(dealerId, category, parseInt(feedId), parseInt(feedId));
-                const xmlCategoryId = savedMapping?.trendyol_category_id || getTrendyolCategoryByName(xmlCategoryCandidates) || null;
-
-                // Görsel URL'leri — image1, image2...image8 etiketlerini dene (XML formatı)
-                const _imageUrls = [];
-                for (let _i = 1; _i <= 8; _i++) {
-                    const _u = p['image' + _i] || p['resim' + _i] || p['foto' + _i] || p['img' + _i];
-                    if (_u && typeof _u === 'string' && _u.trim()) _imageUrls.push(_u.trim());
-                    else if (_u && typeof _u === 'object' && (_u['@_url'] || _u.url)) _imageUrls.push((_u['@_url'] || _u.url).trim());
-                }
-
-                // image1 yoksa tekil etiketlere bak
-                if (_imageUrls.length === 0) {
-                    let _single = p.image || p.resim || p.img || p.picture || p.foto || p.photo || p.image_url || p.imageUrl || p.gorsel || p.urun_resim || p.ImageUrl;
-                    if (_single && typeof _single === 'string' && _single.trim()) _imageUrls.push(_single.trim());
-                    else if (_single && typeof _single === 'object' && (_single['@_url'] || _single.url)) _imageUrls.push((_single['@_url'] || _single.url).trim());
-                    else if (p.images?.image) {
-                        const imgs = Array.isArray(p.images.image) ? p.images.image : [p.images.image];
-                        imgs.forEach(i => {
-                            let u = typeof i === 'string' ? i : (i['@_url'] || i.url || '');
-                            if (u.trim()) _imageUrls.push(u.trim());
-                        });
-                    }
-                }
-                const imageUrl = _imageUrls.join(',');
-
-                insertOrUpdate.run({
-                    dealer_id: dealerId,
-                    barcode,
-                    title: title.substring(0, 200),
-                    category,
-                    stock,
-                    cost_price: costPrice,
-                    sale_price: salePrice,
-                    image_url: imageUrl,
-                    supplier_name: feed.supplier_name || 'Genel',
-                    xml_feed_id: parseInt(feedId),
-                    xml_category_id: xmlCategoryId
-                });
+            const _imageUrls = [];
+            for (let _i = 1; _i <= 8; _i++) {
+                const _u = p['image' + _i] || p['resim' + _i] || p['foto' + _i] || p['img' + _i];
+                if (_u && typeof _u === 'string' && _u.trim()) _imageUrls.push(_u.trim());
+                else if (_u && typeof _u === 'object' && (_u['@_url'] || _u.url)) _imageUrls.push((_u['@_url'] || _u.url).trim());
             }
-        });
+            if (_imageUrls.length === 0) {
+                let _single = p.image || p.resim || p.img || p.picture || p.foto || p.photo || p.image_url || p.imageUrl || p.gorsel || p.urun_resim || p.ImageUrl;
+                if (_single && typeof _single === 'string' && _single.trim()) _imageUrls.push(_single.trim());
+                else if (_single && typeof _single === 'object' && (_single['@_url'] || _single.url)) _imageUrls.push((_single['@_url'] || _single.url).trim());
+                else if (p.images?.image) {
+                    const imgs = Array.isArray(p.images.image) ? p.images.image : [p.images.image];
+                    imgs.forEach(i => {
+                        let u = typeof i === 'string' ? i : (i['@_url'] || i.url || '');
+                        if (u.trim()) _imageUrls.push(u.trim());
+                    });
+                }
+            }
+            const imageUrl = _imageUrls.join(',');
 
-        importMany(items);
+            insertOrUpdate.run({
+                dealer_id: dealerId,
+                barcode,
+                title: title.substring(0, 200),
+                category,
+                stock,
+                cost_price: costPrice,
+                sale_price: salePrice,
+                image_url: imageUrl,
+                supplier_name: feed.supplier_name || 'Genel',
+                xml_feed_id: parseInt(feedId),
+                xml_category_id: xmlCategoryId
+            });
+        }
+    });
 
-        // Feed'i güncelle
-        const count = db.prepare('SELECT COUNT(*) as c FROM dealer_products WHERE dealer_id = ? AND xml_feed_id = ?').get(dealerId, parseInt(feedId)).c;
-        db.prepare("UPDATE xml_feeds SET last_imported = datetime('now'), product_count = ? WHERE id = ?").run(count, feedId);
+    importMany(items);
 
-        addLog('success', `XML import tamamlandı: ${count} ürün (${feed.name})`, dealerId);
-        res.json({ ok: true, count, margin });
+    const count = db.prepare('SELECT COUNT(*) as c FROM dealer_products WHERE dealer_id = ? AND xml_feed_id = ?')
+        .get(dealerId, parseInt(feedId)).c;
+    db.prepare("UPDATE xml_feeds SET last_imported = datetime('now'), product_count = ? WHERE id = ?")
+        .run(count, feedId);
+
+    addLog('success', `XML import tamamlandı: ${count} ürün (${feed.name})`, dealerId);
+    return { ok: true, count, margin };
+}
+
+app.post('/api/dealer/xml-feeds/:id/import', authMiddleware, async (req, res) => {
+    try {
+        const result = await importXmlFeedById(req.dealer.id, req.params.id);
+        res.json(result);
     } catch (e) {
-        addLog('error', `XML import hatası: ${e.message}`, dealerId);
+        addLog('error', `XML import hatası: ${e.message}`, req.dealer.id);
         res.status(500).json({ error: e.message });
     }
 });
