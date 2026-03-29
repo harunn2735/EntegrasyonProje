@@ -1674,6 +1674,32 @@ app.use('/api/questions', authMiddleware, questionsRouter);
 app.use('/api/forecast', authMiddleware, forecastRouter);
 app.use('/api/analytics', authMiddleware, analyticsRouter);
 
+// ── BAYI AYARLARI ──────────────────────────────────────────────
+app.get('/api/dealer/settings', authMiddleware, (req, res) => {
+    const rows = db.prepare('SELECT key, value FROM dealer_settings WHERE dealer_id = ?').all(req.dealer.id);
+    const settings = Object.fromEntries(rows.map(r => [r.key, r.value]));
+    const defaults = { xml_sync_enabled: '1', xml_sync_interval_hours: '6' };
+    res.json({ ...defaults, ...settings });
+});
+
+app.put('/api/dealer/settings', authMiddleware, (req, res) => {
+    const { xml_sync_enabled, xml_sync_interval_hours } = req.body;
+    const upsert = db.prepare(`
+        INSERT INTO dealer_settings (dealer_id, key, value, updated_at)
+        VALUES (?, ?, ?, datetime('now'))
+        ON CONFLICT(dealer_id, key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
+    `);
+    const update = db.transaction(() => {
+        if (xml_sync_enabled !== undefined) upsert.run(req.dealer.id, 'xml_sync_enabled', String(xml_sync_enabled));
+        if (xml_sync_interval_hours !== undefined) {
+            const hours = Math.max(1, Math.min(24, parseInt(xml_sync_interval_hours, 10) || 6));
+            upsert.run(req.dealer.id, 'xml_sync_interval_hours', String(hours));
+        }
+    });
+    update();
+    res.json({ ok: true });
+});
+
 app.get('/api/dealer/orders/:orderNumber', authMiddleware, (req, res) => {
     const dealerId = req.dealer.id;
     const order = db.prepare('SELECT * FROM orders WHERE dealer_id = ? AND order_number = ?').get(dealerId, req.params.orderNumber);
