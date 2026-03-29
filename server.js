@@ -13,6 +13,7 @@ const forecastRouter = require('./routes/forecast');
 const analyticsRouter = require('./routes/analytics');
 const startQuestionsCron = require('./cron/questionsCron');
 const startOrdersCron = require('./cron/ordersCron');
+const startXmlSyncCron = require('./cron/xmlSyncCron');
 
 require('dotenv').config();
 
@@ -2396,6 +2397,7 @@ app.get('/admin', (req, res) => {
 
 startQuestionsCron();
 startOrdersCron(syncDealerOrders);
+startXmlSyncCron(importXmlFeedById);
 
 app.listen(PORT, () => {
     console.log(`✅ Sunucu http://localhost:${PORT} üzerinde çalışıyor.`);
