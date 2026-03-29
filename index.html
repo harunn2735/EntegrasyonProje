@@ -1093,6 +1093,32 @@
         <div class="page" id="page-xml">
           <div class="tip">💡 XML feed ekleyerek tedarikçi ürünlerinizi otomatik olarak mağazanıza aktarabilirsiniz.
           </div>
+          <div class="card" style="margin-bottom:16px;display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <div style="font-weight:600;font-size:14px;margin-bottom:2px">⏱ Otomatik XML Senkronizasyon</div>
+              <div style="font-size:12px;color:var(--muted)" id="xml-sync-status">Yükleniyor…</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+                <input type="checkbox" id="xml-sync-enabled" onchange="saveXmlSyncSettings()" style="width:16px;height:16px;cursor:pointer">
+                Aktif
+              </label>
+              <div style="display:flex;align-items:center;gap:6px">
+                <label style="font-size:13px;color:var(--muted)">Her</label>
+                <select id="xml-sync-interval"
+                  onchange="saveXmlSyncSettings()"
+                  style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+                  <option value="1">1 saat</option>
+                  <option value="2">2 saat</option>
+                  <option value="4">4 saat</option>
+                  <option value="6" selected>6 saat</option>
+                  <option value="12">12 saat</option>
+                  <option value="24">24 saat</option>
+                </select>
+                <label style="font-size:13px;color:var(--muted)">bir güncelle</label>
+              </div>
+            </div>
+          </div>
           <div class="card" style="margin-bottom:20px">
             <h3 style="font-size:14px;font-weight:600;margin-bottom:16px">Yeni XML Feed Ekle</h3>
             <div class="grid grid-3">
@@ -1633,7 +1659,45 @@
     }
 
     // ─── XML FEEDS ───
+    async function loadXmlSyncSettings() {
+      try {
+        const s = await api('/api/dealer/settings');
+        if (!s) return;
+        const cb = document.getElementById('xml-sync-enabled');
+        const sel = document.getElementById('xml-sync-interval');
+        if (cb) cb.checked = s.xml_sync_enabled !== '0';
+        if (sel) sel.value = s.xml_sync_interval_hours || '6';
+        updateXmlSyncStatus(s);
+      } catch (e) { /* sessiz hata */ }
+    }
+
+    function updateXmlSyncStatus(s) {
+      const el = document.getElementById('xml-sync-status');
+      if (!el) return;
+      if (s.xml_sync_enabled === '0') {
+        el.textContent = 'Kapalı — feed\'ler otomatik güncellenmez';
+        el.style.color = 'var(--muted)';
+      } else {
+        const h = s.xml_sync_interval_hours || '6';
+        el.textContent = `Her ${h} saatte bir tüm aktif feed'ler otomatik güncellenir`;
+        el.style.color = '#1D9E75';
+      }
+    }
+
+    async function saveXmlSyncSettings() {
+      const enabled = document.getElementById('xml-sync-enabled')?.checked ? '1' : '0';
+      const interval = document.getElementById('xml-sync-interval')?.value || '6';
+      try {
+        await api('/api/dealer/settings', {
+          method: 'PUT',
+          body: JSON.stringify({ xml_sync_enabled: enabled, xml_sync_interval_hours: interval })
+        });
+        updateXmlSyncStatus({ xml_sync_enabled: enabled, xml_sync_interval_hours: interval });
+      } catch (e) { toast('Ayar kaydedilemedi: ' + e.message, 'error'); }
+    }
+
     async function loadXmlFeeds() {
+      loadXmlSyncSettings();
       try {
         const feeds = await api('/api/dealer/xml-feeds');
         if (!feeds) return;
