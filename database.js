@@ -162,6 +162,16 @@ function initDb() {
       FOREIGN KEY (dealer_id) REFERENCES dealers(id),
       FOREIGN KEY (xml_feed_id) REFERENCES xml_feeds(id)
     );
+
+    CREATE TABLE IF NOT EXISTS dealer_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      dealer_id INTEGER NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      updated_at DATETIME DEFAULT (datetime('now')),
+      UNIQUE(dealer_id, key),
+      FOREIGN KEY (dealer_id) REFERENCES dealers(id)
+    );
   `);
 
   // Mevcut sütunları güvenli şekilde ekle
