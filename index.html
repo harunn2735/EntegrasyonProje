@@ -1013,6 +1013,7 @@
         </div>
         <div class="nav-item" onclick="navigate('stores')" id="nav-stores"><span class="icon">🏪</span>Mağazalarım</div>
         <div class="nav-item" onclick="navigate('orders')" id="nav-orders"><span class="icon">📋</span>Siparişler</div>
+        <div class="nav-item" onclick="navigate('analytics')" id="nav-analytics"><span class="icon">📊</span>Satış Grafikleri</div>
         <div class="nav-item" onclick="navigate('forecast')" id="nav-forecast"><span class="icon">🔮</span>Talep Tahmini</div>
         <div class="nav-item" onclick="navigate('questions')" id="nav-questions"><span class="icon">💬</span>Sorular</div>
         <div class="nav-item" onclick="navigate('settings')" id="nav-settings"><span class="icon">⚙️</span>Trendyol
@@ -1318,6 +1319,7 @@
           </div>
         </div>
 
+        <div class="page" id="page-analytics"></div>
         <div class="page" id="page-forecast"></div>
         <div class="page" id="page-questions"></div>
 
@@ -1507,7 +1509,7 @@
       document.getElementById('topbar-actions').innerHTML = '';
       document.getElementById('page-' + page)?.classList.add('active');
       document.getElementById('nav-' + page)?.classList.add('active');
-      const titles = { dashboard: 'Dashboard', xml: 'XML Feedler', products: 'Ürünlerim', margins: 'Kâr Marjları', profitloss: 'Kâr / Zarar Analizi', stores: 'Mağazalarım', orders: 'Siparişler', forecast: 'Talep Tahmini', questions: 'Müşteri Soruları', settings: 'Trendyol Ayarları' };
+      const titles = { dashboard: 'Dashboard', xml: 'XML Feedler', products: 'Ürünlerim', margins: 'Kâr Marjları', profitloss: 'Kâr / Zarar Analizi', stores: 'Mağazalarım', orders: 'Siparişler', analytics: 'Satış Grafikleri', forecast: 'Talep Tahmini', questions: 'Müşteri Soruları', settings: 'Trendyol Ayarları' };
       document.getElementById('page-title').textContent = titles[page] || page;
       if (page === 'dashboard') loadDashboard();
       if (page === 'xml') loadXmlFeeds();
@@ -1516,6 +1518,7 @@
       if (page === 'profitloss') loadProfitLoss();
       if (page === 'stores') loadStores();
       if (page === 'orders') loadOrders();
+      if (page === 'analytics') loadAnalytics();
       if (page === 'forecast') loadForecast();
       if (page === 'questions') loadQuestions();
       if (page === 'settings') loadSettings();
@@ -2123,6 +2126,7 @@
   </script>
   <script src="/js/orderModal.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="/js/analyticsPage.js"></script>
   <script src="/js/forecastPage.js"></script>
   <script src="/js/questionsPage.js"></script>
 </body>
