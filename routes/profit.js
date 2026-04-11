@@ -62,10 +62,12 @@ router.get('/profit/summary', (req, res) => {
 router.get('/profit/by-product', (req, res) => {
   try {
     const { page = 1, limit = 50, sortBy = 'totalProfit', sortDir = 'desc' } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+    const offset = (pageNum - 1) * limitNum;
     const allowed = ['totalProfit', 'totalRevenue', 'avgMargin', 'soldCount'];
     const col = allowed.includes(sortBy) ? sortBy : 'totalProfit';
     const dir = sortDir === 'asc' ? 'ASC' : 'DESC';
-    const offset = (parseInt(page) - 1) * parseInt(limit);
 
     const rows = db.prepare(`
       SELECT
@@ -81,13 +83,13 @@ router.get('/profit/by-product', (req, res) => {
       GROUP BY pr.barcode
       ORDER BY ${col} ${dir}
       LIMIT ? OFFSET ?
-    `).all(req.dealer.id, parseInt(limit), offset);
+    `).all(req.dealer.id, limitNum, offset);
 
     const { total } = db.prepare(
       'SELECT COUNT(DISTINCT barcode) as total FROM profit_records WHERE dealer_id = ?'
     ).get(req.dealer.id);
 
-    res.json({ products: rows, total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) });
+    res.json({ products: rows, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -139,10 +141,14 @@ router.get('/profit/simulate', (req, res) => {
   try {
     const { productId, price } = req.query;
     if (!productId || !price) return res.status(400).json({ error: 'productId ve price zorunludur' });
+    const parsedId = parseInt(productId, 10);
+    const parsedPrice = parseFloat(price);
+    if (!Number.isFinite(parsedId) || parsedId <= 0) return res.status(400).json({ error: 'productId geçerli bir tam sayı olmalıdır' });
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) return res.status(400).json({ error: 'price geçerli bir pozitif sayı olmalıdır' });
 
     const result = simulateProfit({
-      productId: parseInt(productId),
-      price: parseFloat(price),
+      productId: parsedId,
+      price: parsedPrice,
       db,
       config,
       dealerId: req.dealer.id  // başka dealer'ın ürününü simüle edemez
@@ -159,6 +165,9 @@ router.get('/profit/simulate', (req, res) => {
 router.get('/profit/alerts', (req, res) => {
   try {
     const { type, page = 1, limit = 50 } = req.query;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50));
+    const offset = (pageNum - 1) * limitNum;
     const allowedTypes = ['LOW_MARGIN', 'COMMISSION_MISMATCH'];
     let where = 'WHERE dealer_id = ?';
     const params = [req.dealer.id];
@@ -168,15 +177,14 @@ router.get('/profit/alerts', (req, res) => {
       params.push(type);
     }
 
-    const offset = (parseInt(page) - 1) * parseInt(limit);
     const alerts = db.prepare(
       `SELECT * FROM alert_logs ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-    ).all(...params, parseInt(limit), offset);
+    ).all(...params, limitNum, offset);
     const { total } = db.prepare(
       `SELECT COUNT(*) as total FROM alert_logs ${where}`
     ).get(...params);
 
-    res.json({ alerts, total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) });
+    res.json({ alerts, total, page: pageNum, totalPages: Math.ceil(total / limitNum) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
