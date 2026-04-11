@@ -864,6 +864,35 @@ async function syncDealerOrders(dealer) {
 
     applyStockChanges(dealerId, orders);
 
+    // Profit hesabı: teslim edilmiş, henüz kaydedilmemiş siparişleri işle
+    const { calculateOrderProfit } = require('./services/profitCalculator');
+    const alertService = require('./services/profitAlert');
+    const profitConfig = {
+        MIN_PROFIT_MARGIN_THRESHOLD: Number(process.env.MIN_PROFIT_MARGIN_THRESHOLD ?? 15),
+        DEFAULT_SHIPPING_COST: Number(process.env.DEFAULT_SHIPPING_COST ?? 15),
+        DEFAULT_RETURN_PROVISION_RATE: Number(process.env.DEFAULT_RETURN_PROVISION_RATE ?? 0.02),
+        DEFAULT_COMMISSION_RATE: Number(process.env.DEFAULT_COMMISSION_RATE ?? 12),
+    };
+    const unprocessed = db.prepare(`
+        SELECT * FROM orders
+        WHERE dealer_id = ?
+          AND status = 'Delivered'
+          AND order_number NOT IN (
+            SELECT DISTINCT order_number FROM profit_records WHERE dealer_id = ?
+          )
+    `).all(dealerId, dealerId);
+
+    for (const unprocessedOrder of unprocessed) {
+        try {
+            await calculateOrderProfit(unprocessedOrder, { db, config: profitConfig, alertService });
+        } catch (e) {
+            addLog('error', `Profit hesap hatası [${unprocessedOrder.order_number}]: ${e.message}`, dealerId);
+            // Hata olan siparişi atla, diğerlerine devam et
+        }
+    }
+    if (unprocessed.length > 0) {
+        addLog('success', `${unprocessed.length} sipariş için kâr hesaplandı`, dealerId);
+    }
     addLog('success', `${orders.length} sipariş senkronize edildi`, dealerId);
     return { synced: orders.length };
 }
@@ -1229,8 +1258,8 @@ async function importXmlFeedById(dealerId, feedId) {
     const margin = marginRow?.margin ?? dealer?.profit_margin ?? 20;
 
     const insertOrUpdate = db.prepare(`
-        INSERT INTO dealer_products (dealer_id, barcode, title, category, xml_category_id, stock, cost_price, sale_price, image_url, supplier_name, xml_feed_id)
-        VALUES (@dealer_id, @barcode, @title, @category, @xml_category_id, @stock, @cost_price, @sale_price, @image_url, @supplier_name, @xml_feed_id)
+        INSERT INTO dealer_products (dealer_id, barcode, title, category, xml_category_id, stock, cost_price, sale_price, image_url, supplier_name, xml_feed_id, brand_name)
+        VALUES (@dealer_id, @barcode, @title, @category, @xml_category_id, @stock, @cost_price, @sale_price, @image_url, @supplier_name, @xml_feed_id, @brand_name)
         ON CONFLICT(dealer_id, barcode) DO UPDATE SET
             title = excluded.title,
             category = excluded.category,
@@ -1239,6 +1268,7 @@ async function importXmlFeedById(dealerId, feedId) {
             cost_price = excluded.cost_price,
             sale_price = excluded.sale_price,
             image_url = excluded.image_url,
+            brand_name = excluded.brand_name,
             updated_at = datetime('now')
     `);
     const getCategoryMapping = db.prepare(`
@@ -1258,6 +1288,7 @@ async function importXmlFeedById(dealerId, feedId) {
             const costPrice = parseFloat(p.price || p.Price || p.cost_price || p.fiyat || 0);
             const salePrice = parseFloat((costPrice * (1 + margin / 100)).toFixed(2));
             const stock = parseInt(p.stock || p.Stock || p.quantity || p.stok || 0);
+            const brandName = String(p.brand || p.Brand || p.marka || p.Marka || p.brand_name || p.brandName || p.manufacturer || p.Manufacturer || '').trim();
             const xmlCategoryCandidates = getXmlCategoryCandidates(p);
             const category = xmlCategoryCandidates[0] || 'Genel';
             const savedMapping = getCategoryMapping.get(dealerId, category, parseInt(feedId), parseInt(feedId));
@@ -1294,7 +1325,8 @@ async function importXmlFeedById(dealerId, feedId) {
                 image_url: imageUrl,
                 supplier_name: feed.supplier_name || 'Genel',
                 xml_feed_id: parseInt(feedId),
-                xml_category_id: xmlCategoryId
+                xml_category_id: xmlCategoryId,
+                brand_name: brandName || null
             });
         }
     });
@@ -1660,6 +1692,7 @@ app.get('/api/dealer/orders', authMiddleware, (req, res) => {
 
 app.use('/api/orders', authMiddleware, orderDetailRouter);
 app.use('/api/questions', authMiddleware, questionsRouter);
+app.use('/api', require('./routes/profit'));
 app.use('/api/forecast', authMiddleware, forecastRouter);
 app.use('/api/analytics', authMiddleware, analyticsRouter);
 
@@ -2086,6 +2119,34 @@ function getTrendyolCategoryByName(...categoryNames) {
     return null; // Bulunamazsa getCategoryId titre devam etsin
 }
 
+// Brand adından Trendyol brand ID'yi çeker (önbellekli)
+const brandIdCache = new Map();
+async function resolveBrandId(brandName, authString, supplierId) {
+    if (!brandName) return null;
+    const key = brandName.toLowerCase().trim();
+    if (brandIdCache.has(key)) return brandIdCache.get(key);
+    try {
+        const res = await axios.get(
+            `https://apigw.trendyol.com/integration/product/brands/by-name?name=${encodeURIComponent(brandName)}`,
+            {
+                headers: {
+                    Authorization: `Basic ${authString}`,
+                    'User-Agent': `${supplierId} - SelfIntegration`,
+                    'Content-Type': 'application/json',
+                },
+                timeout: 5000,
+            }
+        );
+        const brands = Array.isArray(res.data) ? res.data : [];
+        const match = brands.find(b => b.name?.toLowerCase() === key) || brands[0];
+        const id = match?.id || null;
+        brandIdCache.set(key, id);
+        return id;
+    } catch (_) {
+        return null;
+    }
+}
+
 app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
     const dealerId = req.dealer.id;
     const { store_id } = req.body;
@@ -2193,7 +2254,7 @@ app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
                 if (!batch.length) continue;
                 totalQueued += batch.length;
 
-                const items = batch.map(p => {
+                const items = await Promise.all(batch.map(async p => {
                     const rawUrls = (p.image_url || '').split(',').map(u => u.trim()).filter(u => isValidImageUrl(u));
                     const imageUrls = rawUrls.length > 0 ? rawUrls.slice(0, 8) : [PLACEHOLDER_IMAGE];
                     const savedMapping = getUploadCategoryMapping.get(dealerId, p.category, p.xml_feed_id || null, p.xml_feed_id || null);
@@ -2220,11 +2281,15 @@ app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
                         (p.xml_category_id && p.xml_category_id > 0)
                             ? p.xml_category_id
                             : (savedMapping?.trendyol_category_id || getTrendyolCategoryByName(p.category, p.title) || getCategoryId(`${p.category || ''} ${p.title || ''}`));
+                    // XML'den gelen brand_name ile Trendyol brand ID'yi çöz, bulunamazsa varsayılana düş
+                    const resolvedBrandId = (p.brand_name
+                        ? await resolveBrandId(p.brand_name, authString, store.supplier_id)
+                        : null) || 2613880;
                     return {
                         barcode: p.barcode,
                         title: p.title.substring(0, 100),
                         productMainId: p.barcode,
-                        brandId: 2613880,
+                        brandId: resolvedBrandId,
                         categoryId: finalCategoryId,
                         quantity: p.stock,
                         stockCode: p.barcode,
@@ -2236,11 +2301,9 @@ app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
                         vatRate: 20,
                         cargoCompanyId: 10,
                         images: imageUrls.map(u => ({ url: u })),
-                        attributes: mergedAttributes /*
-                            { attributeId: 47, customAttributeValue: 'Çok Renkli' },
-                        ] */,
+                        attributes: mergedAttributes,
                     };
-                });
+                }));
 
                 try {
                     const uploadRes = await axios.post(API_URL, { items }, {
