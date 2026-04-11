@@ -2,85 +2,254 @@
 (function () {
   'use strict';
 
-  // ── CSS ─────────────────────────────────────────────────────
   const STYLE = `
-    #page-questions { padding: 0; }
-    .qp-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 20px;
+    #page-questions {
+      padding: 8px 0 0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      overflow-x: hidden;
     }
-    .qp-header h2 { font-size: 18px; font-weight: 700; color: var(--text); }
-    .qp-tabs {
-      display: flex; gap: 8px; margin-bottom: 20px;
+    .qp-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 100%;
+      max-width: 1180px;
+      margin: 0 auto;
     }
-    .qp-tab {
-      padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border);
-      background: var(--bg2); cursor: pointer; font-size: 13px; font-weight: 500;
+    .qp-toolbar {
+      background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.92));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+    }
+    .qp-toolbar-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .qp-heading {
+      min-width: 0;
+    }
+    .qp-heading h2 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .qp-heading p {
+      font-size: 13px;
       color: var(--muted);
     }
+    #qp-list {
+      width: 100%;
+    }
+    .qp-tabs {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 6px;
+      border-radius: 14px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+    }
+    .qp-tab {
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      transition: .2s ease;
+    }
+    .qp-tab:hover {
+      color: var(--text);
+      background: rgba(255,255,255,.72);
+    }
     .qp-tab.active {
-      background: var(--accent); color: #fff; border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 8px 18px rgba(108, 99, 255, .18);
     }
     .qp-card {
-      background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
-      padding: 18px 20px; margin-bottom: 14px; box-shadow: var(--shadow);
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
     }
     .qp-card-header {
-      display: flex; justify-content: space-between; align-items: flex-start;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
       margin-bottom: 10px;
     }
-    .qp-product { font-size: 13px; font-weight: 600; color: var(--text); }
-    .qp-date { font-size: 12px; color: var(--muted); }
+    .qp-product {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .qp-date {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
     .qp-question {
-      font-size: 13px; color: var(--text); margin-bottom: 12px;
-      padding: 10px 12px; background: var(--bg3); border-radius: 8px;
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: var(--bg3);
+      border-radius: 8px;
       font-style: italic;
     }
     .qp-label {
-      font-size: 11px; font-weight: 700; color: var(--muted);
-      text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 6px;
     }
     .qp-textarea {
-      width: 100%; min-height: 80px; padding: 10px 12px;
-      border: 1px solid var(--border); border-radius: 8px;
-      font-family: inherit; font-size: 13px; color: var(--text);
-      background: var(--bg2); resize: vertical; margin-bottom: 12px;
+      width: 100%;
+      min-height: 80px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg2);
+      resize: vertical;
+      margin-bottom: 12px;
       box-sizing: border-box;
     }
-    .qp-textarea:focus { outline: none; border-color: var(--accent); }
-    .qp-textarea[readonly] { background: var(--bg3); color: var(--muted); }
-    .qp-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .qp-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .qp-textarea[readonly] {
+      background: var(--bg3);
+      color: var(--muted);
+    }
+    .qp-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
     .qp-btn {
-      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
-      cursor: pointer; border: none; font-family: inherit;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
     }
-    .qp-btn-approve { background: var(--green); color: #fff; }
-    .qp-btn-approve:hover { opacity: .85; }
+    .qp-btn-approve {
+      background: var(--green);
+      color: #fff;
+    }
+    .qp-btn-approve:hover {
+      opacity: .85;
+    }
     .qp-btn-reject {
-      background: var(--bg3); color: var(--muted); border: 1px solid var(--border);
+      background: var(--bg3);
+      color: var(--muted);
+      border: 1px solid var(--border);
     }
-    .qp-btn-reject:hover { background: #fee2e2; color: var(--red); border-color: var(--red); }
+    .qp-btn-reject:hover {
+      background: #fee2e2;
+      color: var(--red);
+      border-color: var(--red);
+    }
     .qp-btn-fetch {
-      background: var(--accent); color: #fff; padding: 8px 16px;
-      border-radius: 8px; font-size: 13px; font-weight: 600;
-      cursor: pointer; border: none; font-family: inherit;
+      background: var(--accent);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
     }
-    .qp-btn-fetch:disabled { opacity: .6; cursor: not-allowed; }
+    .qp-btn-fetch:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
     .qp-empty {
-      text-align: center; padding: 48px; color: var(--muted); font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      width: 100%;
+      color: var(--muted);
+      font-size: 14px;
     }
     .qp-no-ai {
-      font-size: 12px; color: var(--yellow); margin-bottom: 8px;
-      padding: 6px 10px; background: #fefce8; border-radius: 6px;
+      font-size: 12px;
+      color: var(--yellow);
+      margin-bottom: 8px;
+      padding: 6px 10px;
+      background: #fefce8;
+      border-radius: 6px;
     }
     .qp-status-badge {
-      font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 12px;
     }
-    .qp-status-sent { background: #dcfce7; color: var(--green); }
-    .qp-status-rejected { background: #fee2e2; color: var(--red); }
+    .qp-status-sent {
+      background: #dcfce7;
+      color: var(--green);
+    }
+    .qp-status-rejected {
+      background: #fee2e2;
+      color: var(--red);
+    }
+    @media (max-width: 768px) {
+      #page-questions {
+        padding-top: 0;
+      }
+      .qp-toolbar {
+        padding: 16px;
+      }
+      .qp-toolbar-head,
+      .qp-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .qp-tabs {
+        display: flex;
+        width: 100%;
+      }
+      .qp-tab {
+        flex: 1 1 140px;
+        text-align: center;
+      }
+      .qp-actions {
+        flex-direction: column-reverse;
+      }
+      .qp-btn {
+        width: 100%;
+      }
+    }
   `;
 
   let styleInjected = false;
+
   function injectStyle() {
     if (styleInjected) return;
     const el = document.createElement('style');
@@ -89,7 +258,6 @@
     styleInjected = true;
   }
 
-  // ── API HELPER ───────────────────────────────────────────────
   async function qpApi(path, opts = {}) {
     const token = localStorage.getItem('dealer_token') || '';
     const res = await fetch(path, {
@@ -101,11 +269,10 @@
       },
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Sunucu hatası');
+    if (!res.ok) throw new Error(data.detail ? `${data.error}: ${data.detail}` : (data.error || 'Sunucu hatası'));
     return data;
   }
 
-  // ── TOAST HELPER ─────────────────────────────────────────────
   function qpToast(msg, type = 'info') {
     const t = document.getElementById('toast');
     if (!t) return;
@@ -116,7 +283,6 @@
     setTimeout(() => d.remove(), 3500);
   }
 
-  // ── HTML HELPERS ─────────────────────────────────────────────
   function esc(str) {
     return String(str || '')
       .replace(/&/g, '&amp;')
@@ -128,32 +294,29 @@
   let currentStatus = 'pending';
   let saveTimers = {};
 
-  // ── RENDER CARD ──────────────────────────────────────────────
   function renderCard(q) {
-    const date = q.asked_at
-      ? new Date(q.asked_at).toLocaleDateString('tr-TR')
-      : '';
+    const date = q.asked_at ? new Date(q.asked_at).toLocaleDateString('tr-TR') : '';
     const isPending = q.status === 'pending';
 
     const noAiBadge = !q.ai_answer
-      ? `<div class="qp-no-ai">⚠️ AI cevabı üretilemedi — lütfen manuel yazın.</div>`
+      ? '<div class="qp-no-ai">AI cevabı üretilemedi, lütfen manuel olarak düzenleyin.</div>'
       : '';
 
     const statusBadge = !isPending
-      ? `<span class="qp-status-badge qp-status-${q.status}">${q.status === 'sent' ? '✓ Gönderildi' : '✗ Reddedildi'}</span>`
+      ? `<span class="qp-status-badge qp-status-${q.status}">${q.status === 'sent' ? 'Gönderildi' : 'Reddedildi'}</span>`
       : '';
 
     const actions = isPending
       ? `<div class="qp-actions">
-           <button class="qp-btn qp-btn-reject" onclick="window._qpReject(${q.id})">✗ Reddet</button>
-           <button class="qp-btn qp-btn-approve" onclick="window._qpApprove(${q.id})">✓ Onayla &amp; Gönder</button>
+           <button class="qp-btn qp-btn-reject" onclick="window._qpReject(${q.id})">Reddet</button>
+           <button class="qp-btn qp-btn-approve" onclick="window._qpApprove(${q.id})">Onayla ve Gönder</button>
          </div>`
       : '';
 
     return `
       <div class="qp-card" id="qp-card-${q.id}">
         <div class="qp-card-header">
-          <span class="qp-product">📦 ${esc(q.product_name || 'Ürün')}</span>
+          <span class="qp-product">Ürün: ${esc(q.product_name || 'Ürün')}</span>
           <div style="display:flex;gap:8px;align-items:center;">
             ${statusBadge}
             <span class="qp-date">${date}</span>
@@ -161,7 +324,7 @@
         </div>
         <div class="qp-question">"${esc(q.question_text)}"</div>
         ${noAiBadge}
-        <div class="qp-label">AI Cevabı</div>
+        <div class="qp-label">AI cevabı</div>
         <textarea
           class="qp-textarea"
           id="qp-answer-${q.id}"
@@ -173,7 +336,6 @@
     `;
   }
 
-  // ── LOAD QUESTIONS ───────────────────────────────────────────
   async function loadQuestions(status) {
     if (status !== undefined) currentStatus = status;
     injectStyle();
@@ -182,16 +344,23 @@
     if (!container) return;
 
     container.innerHTML = `
-      <div class="qp-header">
-        <h2>Müşteri Soruları</h2>
-        <button class="qp-btn-fetch" id="qp-btn-fetch" onclick="window._qpFetch()">🔄 Trendyol'dan Çek</button>
+      <div class="qp-shell">
+        <div class="qp-toolbar">
+          <div class="qp-toolbar-head">
+            <div class="qp-heading">
+              <h2>Soru Durumları</h2>
+              <p>Bekleyen, gönderilen ve reddedilen soruları daha düzenli şekilde buradan yönetin.</p>
+            </div>
+            <button class="qp-btn-fetch" id="qp-btn-fetch" onclick="window._qpFetch()">Trendyol'dan Çek</button>
+          </div>
+          <div class="qp-tabs">
+            <button class="qp-tab ${currentStatus === 'pending' ? 'active' : ''}" onclick="window.loadQuestions('pending')">Bekleyen</button>
+            <button class="qp-tab ${currentStatus === 'sent' ? 'active' : ''}" onclick="window.loadQuestions('sent')">Gönderildi</button>
+            <button class="qp-tab ${currentStatus === 'rejected' ? 'active' : ''}" onclick="window.loadQuestions('rejected')">Reddedildi</button>
+          </div>
+        </div>
+        <div id="qp-list"><div class="qp-empty">Yükleniyor...</div></div>
       </div>
-      <div class="qp-tabs">
-        <button class="qp-tab ${currentStatus === 'pending' ? 'active' : ''}" onclick="window.loadQuestions('pending')">Bekleyen</button>
-        <button class="qp-tab ${currentStatus === 'sent' ? 'active' : ''}" onclick="window.loadQuestions('sent')">Gönderildi</button>
-        <button class="qp-tab ${currentStatus === 'rejected' ? 'active' : ''}" onclick="window.loadQuestions('rejected')">Reddedildi</button>
-      </div>
-      <div id="qp-list"><div class="qp-empty">⏳ Yükleniyor...</div></div>
     `;
 
     try {
@@ -199,17 +368,16 @@
       const list = document.getElementById('qp-list');
       if (!list) return;
       if (!questions.length) {
-        list.innerHTML = `<div class="qp-empty">Bu kategoride soru bulunamadı.</div>`;
+        list.innerHTML = '<div class="qp-empty">Bu kategoride soru bulunamadı.</div>';
       } else {
         list.innerHTML = questions.map(renderCard).join('');
       }
     } catch (e) {
       const list = document.getElementById('qp-list');
-      if (list) list.innerHTML = `<div class="qp-empty">❌ ${esc(e.message)}</div>`;
+      if (list) list.innerHTML = `<div class="qp-empty">${esc(e.message)}</div>`;
     }
   }
 
-  // ── ACTIONS ──────────────────────────────────────────────────
   window._qpSaveDebounce = function (id) {
     clearTimeout(saveTimers[id]);
     saveTimers[id] = setTimeout(async () => {
@@ -220,7 +388,9 @@
           method: 'PUT',
           body: JSON.stringify({ ai_answer: ta.value }),
         });
-      } catch (_) { /* silent — kullanıcı onay sırasında hata alır */ }
+      } catch (_) {
+        // Sessiz geç: kullanıcı asıl aksiyonda geri bildirim alacak.
+      }
     }, 800);
   };
 
@@ -234,16 +404,17 @@
         });
       } catch (_) {}
     }
+
     try {
       await qpApi(`/api/questions/${id}/approve`, { method: 'POST' });
       document.getElementById(`qp-card-${id}`)?.remove();
       const list = document.getElementById('qp-list');
       if (list && !list.querySelector('.qp-card')) {
-        list.innerHTML = `<div class="qp-empty">Bu kategoride soru bulunamadı.</div>`;
+        list.innerHTML = '<div class="qp-empty">Bu kategoride soru bulunamadı.</div>';
       }
-      qpToast("✅ Cevap Trendyol'a gönderildi", 'success');
+      qpToast("Cevap Trendyol'a gönderildi", 'success');
     } catch (e) {
-      qpToast('❌ ' + e.message, 'error');
+      qpToast(e.message, 'error');
     }
   };
 
@@ -253,24 +424,31 @@
       document.getElementById(`qp-card-${id}`)?.remove();
       const list = document.getElementById('qp-list');
       if (list && !list.querySelector('.qp-card')) {
-        list.innerHTML = `<div class="qp-empty">Bu kategoride soru bulunamadı.</div>`;
+        list.innerHTML = '<div class="qp-empty">Bu kategoride soru bulunamadı.</div>';
       }
       qpToast('Soru reddedildi', 'info');
     } catch (e) {
-      qpToast('❌ ' + e.message, 'error');
+      qpToast(e.message, 'error');
     }
   };
 
   window._qpFetch = async function () {
     const btn = document.getElementById('qp-btn-fetch');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Çekiliyor...'; }
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Çekiliyor...';
+    }
+
     try {
       const result = await qpApi('/api/questions/fetch', { method: 'POST' });
-      qpToast(`✅ ${result.saved} yeni soru eklendi (${result.fetched} çekildi)`, 'success');
+      qpToast(`${result.saved} yeni soru eklendi (${result.fetched} çekildi)`, 'success');
       loadQuestions(currentStatus);
     } catch (e) {
-      qpToast('❌ ' + e.message, 'error');
-      if (btn) { btn.disabled = false; btn.textContent = "🔄 Trendyol'dan Çek"; }
+      qpToast(e.message, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Trendyol'dan Çek";
+      }
     }
   };
 

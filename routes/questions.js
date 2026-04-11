@@ -23,7 +23,7 @@ async function fetchAndSaveQuestions(dealer) {
   let response;
   try {
     response = await axios.get(
-      `https://apigw.trendyol.com/integration/product/sellers/${dealer.supplier_id}/questions?status=waitingForAnswer&page=0&size=50`,
+      `https://apigw.trendyol.com/integration/qna/sellers/${dealer.supplier_id}/questions/filter?status=WAITING_FOR_ANSWER&page=0&size=50`,
       { headers: trendyolHeaders(dealer), timeout: 8000 }
     );
   } catch (err) {
@@ -139,7 +139,7 @@ router.post('/:id/approve', async (req, res) => {
 
   try {
     await axios.post(
-      `https://apigw.trendyol.com/integration/product/sellers/${dealer.supplier_id}/questions/${question.question_id}/answers`,
+      `https://apigw.trendyol.com/integration/qna/sellers/${dealer.supplier_id}/questions/${question.question_id}/answers`,
       { text: question.ai_answer.trim() },
       { headers: trendyolHeaders(dealer), timeout: 8000 }
     );

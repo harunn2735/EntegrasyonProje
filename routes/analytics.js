@@ -175,4 +175,26 @@ router.get('/top-products', (req, res) => {
   }
 });
 
+// ── SİPARİŞ DURUM DAĞILIMI ───────────────────────────────────
+router.get('/status', (req, res) => {
+  try {
+    const row = db
+      .prepare(
+        `SELECT
+          SUM(CASE WHEN status IN ('Delivered','Shipped') THEN 1 ELSE 0 END)                                                       AS delivered,
+          SUM(CASE WHEN status NOT IN ('Delivered','Shipped','Cancelled','Returned','UnDelivered') THEN 1 ELSE 0 END)               AS processing,
+          SUM(CASE WHEN status IN ('Cancelled','Returned','UnDelivered') THEN 1 ELSE 0 END)                                        AS cancelled
+         FROM orders WHERE dealer_id = ?`
+      )
+      .get(req.dealer.id);
+    res.json({
+      delivered:  row.delivered  || 0,
+      processing: row.processing || 0,
+      cancelled:  row.cancelled  || 0,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 module.exports = router;
