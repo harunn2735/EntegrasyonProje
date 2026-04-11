@@ -14,6 +14,8 @@ const analyticsRouter = require('./routes/analytics');
 const startQuestionsCron = require('./cron/questionsCron');
 const startOrdersCron = require('./cron/ordersCron');
 const startXmlSyncCron = require('./cron/xmlSyncCron');
+const { calculateOrderProfit } = require('./services/profitCalculator');
+const alertService = require('./services/profitAlert');
 
 require('dotenv').config();
 
@@ -21,6 +23,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'trendyol_bayi_secret_2024';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+const profitConfig = {
+    MIN_PROFIT_MARGIN_THRESHOLD: Number(process.env.MIN_PROFIT_MARGIN_THRESHOLD ?? 15),
+    DEFAULT_SHIPPING_COST: Number(process.env.DEFAULT_SHIPPING_COST ?? 15),
+    DEFAULT_RETURN_PROVISION_RATE: Number(process.env.DEFAULT_RETURN_PROVISION_RATE ?? 0.02),
+    DEFAULT_COMMISSION_RATE: Number(process.env.DEFAULT_COMMISSION_RATE ?? 12),
+};
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -865,14 +874,6 @@ async function syncDealerOrders(dealer) {
     applyStockChanges(dealerId, orders);
 
     // Profit hesabı: teslim edilmiş, henüz kaydedilmemiş siparişleri işle
-    const { calculateOrderProfit } = require('./services/profitCalculator');
-    const alertService = require('./services/profitAlert');
-    const profitConfig = {
-        MIN_PROFIT_MARGIN_THRESHOLD: Number(process.env.MIN_PROFIT_MARGIN_THRESHOLD ?? 15),
-        DEFAULT_SHIPPING_COST: Number(process.env.DEFAULT_SHIPPING_COST ?? 15),
-        DEFAULT_RETURN_PROVISION_RATE: Number(process.env.DEFAULT_RETURN_PROVISION_RATE ?? 0.02),
-        DEFAULT_COMMISSION_RATE: Number(process.env.DEFAULT_COMMISSION_RATE ?? 12),
-    };
     const unprocessed = db.prepare(`
         SELECT * FROM orders
         WHERE dealer_id = ?
@@ -882,16 +883,18 @@ async function syncDealerOrders(dealer) {
           )
     `).all(dealerId, dealerId);
 
+    let profitProcessed = 0;
     for (const unprocessedOrder of unprocessed) {
         try {
             await calculateOrderProfit(unprocessedOrder, { db, config: profitConfig, alertService });
+            profitProcessed++;
         } catch (e) {
             addLog('error', `Profit hesap hatası [${unprocessedOrder.order_number}]: ${e.message}`, dealerId);
             // Hata olan siparişi atla, diğerlerine devam et
         }
     }
-    if (unprocessed.length > 0) {
-        addLog('success', `${unprocessed.length} sipariş için kâr hesaplandı`, dealerId);
+    if (profitProcessed > 0) {
+        addLog('success', `${profitProcessed} sipariş için kâr hesaplandı`, dealerId);
     }
     addLog('success', `${orders.length} sipariş senkronize edildi`, dealerId);
     return { synced: orders.length };
@@ -1692,7 +1695,7 @@ app.get('/api/dealer/orders', authMiddleware, (req, res) => {
 
 app.use('/api/orders', authMiddleware, orderDetailRouter);
 app.use('/api/questions', authMiddleware, questionsRouter);
-app.use('/api', require('./routes/profit'));
+app.use('/api', authMiddleware, require('./routes/profit'));
 app.use('/api/forecast', authMiddleware, forecastRouter);
 app.use('/api/analytics', authMiddleware, analyticsRouter);
 

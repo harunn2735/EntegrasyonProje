@@ -6,8 +6,6 @@ const router = express.Router();
 const db = require('../database');
 const { simulateProfit } = require('../services/profitCalculator');
 
-require('dotenv').config();
-
 const config = {
   MIN_PROFIT_MARGIN_THRESHOLD: Number(process.env.MIN_PROFIT_MARGIN_THRESHOLD ?? 15),
   DEFAULT_SHIPPING_COST: Number(process.env.DEFAULT_SHIPPING_COST ?? 15),
