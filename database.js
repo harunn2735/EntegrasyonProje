@@ -208,6 +208,53 @@ function initDb() {
   safeAlter(`ALTER TABLE dealer_products ADD COLUMN last_stock_sync_at DATETIME`);
   safeAlter(`ALTER TABLE dealer_products ADD COLUMN last_stock_alert_at DATETIME`);
 
+  // ── Komisyon ve Kâr Tabloları ──────────────────────────────
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS commission_rates (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id   TEXT    NOT NULL UNIQUE,
+      category_name TEXT    NOT NULL,
+      rate          REAL    NOT NULL,
+      kdv_rate      INTEGER NOT NULL DEFAULT 20,
+      updated_at    TEXT    DEFAULT (datetime('now'))
+    )
+  `).run();
+
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS profit_records (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_number        TEXT    NOT NULL,
+      dealer_id           INTEGER NOT NULL,
+      barcode             TEXT,
+      category_id         TEXT,
+      sale_price          REAL,
+      cost_price          REAL,
+      actual_commission   REAL,
+      expected_commission REAL,
+      kdv_amount          REAL,
+      shipping_cost       REAL,
+      return_provision    REAL,
+      net_profit          REAL,
+      profit_margin       REAL,
+      created_at          TEXT    DEFAULT (datetime('now')),
+      UNIQUE (order_number, dealer_id, barcode)
+    )
+  `).run();
+
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS alert_logs (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      dealer_id   INTEGER NOT NULL,
+      order_number TEXT,
+      barcode     TEXT,
+      alert_type  TEXT    NOT NULL,
+      margin      REAL,
+      threshold   REAL,
+      detail      TEXT,
+      created_at  TEXT    DEFAULT (datetime('now'))
+    )
+  `).run();
+
   // Varsayılan admin hesabı oluştur (mevcut bayilere şifre yoksa)
   const dealers = db.prepare('SELECT id, email FROM dealers WHERE password_hash IS NULL').all();
   const defaultPassword = bcrypt.hashSync('demo123', 10);
