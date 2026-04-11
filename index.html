@@ -1179,50 +1179,7 @@
         </div>
 
         <!-- KÂR/ZARAR -->
-        <div class="page" id="page-profitloss">
-          <div class="summary-box" id="pl-summary">
-            <div class="s-item">
-              <div class="s-val" id="pl-products">-</div>
-              <div class="s-label">Ürün Sayısı</div>
-            </div>
-            <div class="s-item">
-              <div class="s-val" id="pl-cost">-</div>
-              <div class="s-label">Toplam Maliyet</div>
-            </div>
-            <div class="s-item">
-              <div class="s-val" id="pl-revenue">-</div>
-              <div class="s-label">Toplam Ciro</div>
-            </div>
-            <div class="s-item">
-              <div class="s-val" id="pl-profit">-</div>
-              <div class="s-label">Potansiyel Kâr</div>
-            </div>
-          </div>
-          <div class="search-bar">
-            <input id="pl-search" placeholder="Ürün ara..." oninput="loadProfitLoss()" />
-            <select id="pl-supplier"
-              style="padding:9px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px"
-              onchange="loadProfitLoss()">
-              <option value="">Tüm Tedarikçiler</option>
-            </select>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Ürün</th>
-                  <th>Maliyet</th>
-                  <th>Satış</th>
-                  <th>Kâr/Ürün</th>
-                  <th>Marj %</th>
-                  <th>Stok</th>
-                  <th>Top. Potansiyel Kâr</th>
-                </tr>
-              </thead>
-              <tbody id="pl-tbody"></tbody>
-            </table>
-          </div>
-        </div>
+        <div class="page" id="page-profitloss"></div>
 
         <!-- MAĞAZALAR -->
         <div class="page" id="page-stores">
@@ -1824,37 +1781,6 @@
       } catch (e) { toast(e.message, 'error'); }
     }
 
-    // ─── KÂR / ZARAR ───
-    async function loadProfitLoss() {
-      const search = document.getElementById('pl-search').value;
-      const supplier = document.getElementById('pl-supplier').value;
-      try {
-        const d = await api(`/api/dealer/profit-loss?search=${encodeURIComponent(search)}&supplier=${encodeURIComponent(supplier)}`);
-        if (!d) return;
-        const s = d.summary;
-        document.getElementById('pl-products').textContent = s.total_products || 0;
-        document.getElementById('pl-cost').textContent = '₺' + (s.total_cost || 0).toLocaleString('tr', { maximumFractionDigits: 0 });
-        document.getElementById('pl-revenue').textContent = '₺' + (s.total_revenue || 0).toLocaleString('tr', { maximumFractionDigits: 0 });
-        document.getElementById('pl-profit').textContent = '₺' + (s.total_profit || 0).toLocaleString('tr', { maximumFractionDigits: 0 });
-        document.getElementById('pl-profit').style.color = s.total_profit >= 0 ? 'var(--green)' : 'var(--red)';
-
-        const tbody = document.getElementById('pl-tbody');
-        tbody.innerHTML = d.products.map(p => {
-          const profitCls = p.profit_per_unit >= 0 ? 'badge-green' : 'badge-red';
-          const mrgCls = p.margin_pct >= 0 ? 'badge-green' : 'badge-red';
-          return `<tr>
-        <td><div style="font-weight:500;font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.title)}</div><div style="font-size:10px;color:var(--muted)">${esc(p.supplier_name)}</div></td>
-        <td>₺${p.cost_price?.toFixed(2)}</td>
-        <td style="color:var(--green);font-weight:600">₺${p.sale_price?.toFixed(2)}</td>
-        <td><span class="badge ${profitCls}">₺${p.profit_per_unit?.toFixed(2)}</span></td>
-        <td><span class="badge ${mrgCls}">%${p.margin_pct}</span></td>
-        <td>${p.stock}</td>
-        <td style="font-weight:700;color:${p.total_potential_profit >= 0 ? 'var(--green)' : 'var(--red)'}">₺${(p.total_potential_profit || 0).toLocaleString('tr', { maximumFractionDigits: 0 })}</td>
-      </tr>`;
-        }).join('');
-      } catch (e) { toast(e.message, 'error'); }
-    }
-
     // ─── MAĞAZALAR ───
     async function loadStores() {
       try {
@@ -2193,6 +2119,7 @@
   <script src="/js/analyticsPage.js"></script>
   <script src="/js/forecastPage.js"></script>
   <script src="/js/questionsPage.js"></script>
+  <script src="/js/profitLossPage.js"></script>
 </body>
 
 </html>

@@ -70,6 +70,7 @@ router.get('/profit/by-product', (req, res) => {
     const rows = db.prepare(`
       SELECT
         pr.barcode,
+        dp.id                           as productId,
         dp.title,
         COUNT(pr.id)                    as soldCount,
         ROUND(SUM(pr.sale_price), 2)    as totalRevenue,
