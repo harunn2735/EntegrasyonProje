@@ -14,8 +14,16 @@ const analyticsRouter = require('./routes/analytics');
 const startQuestionsCron = require('./cron/questionsCron');
 const startOrdersCron = require('./cron/ordersCron');
 const startXmlSyncCron = require('./cron/xmlSyncCron');
+const pricingRouter = require('./routes/pricing');
+const healthRouter  = require('./routes/health');
+const { startPricingCron } = require('./src/jobs/pricingScan');
+const startAutoAnswerCron = require('./cron/autoAnswerCron');
 const { calculateOrderProfit } = require('./services/profitCalculator');
 const alertService = require('./services/profitAlert');
+const { oneriKategori, kullaniciOnayla, oneriAttributeDoldur } = require('./services/kategoriOneriService');
+const { searchKategoriler } = require('./services/kategoriService');
+const { urunIcerikUret } = require('./services/urunIcerikService');
+const { OpenAI } = require('openai');
 
 require('dotenv').config();
 
@@ -29,6 +37,7 @@ const profitConfig = {
     DEFAULT_SHIPPING_COST: Number(process.env.DEFAULT_SHIPPING_COST ?? 15),
     DEFAULT_RETURN_PROVISION_RATE: Number(process.env.DEFAULT_RETURN_PROVISION_RATE ?? 0.02),
     DEFAULT_COMMISSION_RATE: Number(process.env.DEFAULT_COMMISSION_RATE ?? 12),
+    DEFAULT_COST_RATIO: Number(process.env.DEFAULT_COST_RATIO ?? 0.60),
 };
 
 app.use(cors());
@@ -36,6 +45,15 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname)));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// SSE endpoints can't set headers, so they pass the JWT via ?token=...
+// Promote it to Authorization header here, before any authMiddleware runs.
+app.use((req, res, next) => {
+    if (req.query.token && !req.headers.authorization) {
+        req.headers.authorization = `Bearer ${req.query.token}`;
+    }
+    next();
+});
 
 // ── LOG YARDIMCISI ─────────────────────────────────────────────
 function addLog(level, message, dealerId = null) {
@@ -452,7 +470,7 @@ app.post('/api/auth/login', (req, res) => {
 
     const token = jwt.sign(
         { id: dealer.id, email: dealer.email, name: dealer.name },
-        JWT_SECRET, { expiresIn: '24h' }
+        JWT_SECRET, { expiresIn: '7d' }
     );
 
     addLog('info', `Bayi girişi: ${dealer.name}`, dealer.id);
@@ -583,12 +601,44 @@ app.post('/api/dealer/xml-feeds', authMiddleware, (req, res) => {
 });
 
 app.delete('/api/dealer/xml-feeds/:id', authMiddleware, (req, res) => {
-    const feedId = req.params.id;
+    const feedId = parseInt(req.params.id);
     const dealerId = req.dealer.id;
-    db.prepare('DELETE FROM dealer_products WHERE xml_feed_id = ? AND dealer_id = ?').run(feedId, dealerId);
-    db.prepare('DELETE FROM xml_feeds WHERE id = ? AND dealer_id = ?').run(feedId, dealerId);
-    db.prepare('DELETE FROM category_mappings WHERE xml_feed_id = ? AND dealer_id = ?').run(feedId, dealerId);
-    res.json({ ok: true });
+
+    if (!feedId || isNaN(feedId)) {
+        return res.status(400).json({ error: 'Geçersiz feed ID' });
+    }
+
+    try {
+        // Feed'in bu bayiye ait olduğunu doğrula
+        const feed = db.prepare('SELECT id, supplier_name FROM xml_feeds WHERE id = ? AND dealer_id = ?').get(feedId, dealerId);
+        if (!feed) {
+            return res.status(404).json({ error: 'Feed bulunamadı veya erişim yetkiniz yok' });
+        }
+
+        const silme = db.transaction(() => {
+            // 1. Bağlı ürünleri sil — hem xml_feed_id hem supplier_name ile eşleşenleri kapsa
+            const dpResult = db.prepare(`
+                DELETE FROM dealer_products
+                WHERE dealer_id = ?
+                  AND (xml_feed_id = ? OR (xml_feed_id IS NULL AND supplier_name = ?))
+            `).run(dealerId, feedId, feed.supplier_name);
+
+            // 2. Kategori eşleştirmelerini sil
+            db.prepare('DELETE FROM category_mappings WHERE xml_feed_id = ? AND dealer_id = ?').run(feedId, dealerId);
+
+            // 3. Feed'i sil
+            db.prepare('DELETE FROM xml_feeds WHERE id = ? AND dealer_id = ?').run(feedId, dealerId);
+
+            return dpResult.changes;
+        });
+
+        const silinenUrun = silme();
+        addLog('info', `XML feed silindi: id=${feedId}, supplier=${feed.supplier_name}, silinen ürün=${silinenUrun}`, dealerId);
+        res.json({ ok: true, silinen_urun: silinenUrun });
+    } catch (e) {
+        addLog('error', `XML feed silme hatası (id=${feedId}): ${e.message}`, dealerId);
+        res.status(500).json({ error: `Feed silinirken hata oluştu: ${e.message}` });
+    }
 });
 
 app.get('/api/dealer/category-mappings/source-categories', authMiddleware, (req, res) => {
@@ -664,10 +714,18 @@ app.get('/api/dealer/trendyol-categories/:id/attributes-v2', authMiddleware, asy
     const dealerId = req.dealer.id;
     const preferredStoreId = parseInt(req.query.store_id || '0', 10) || null;
 
+    // Resolve to the real Trendyol external ID — the caller might pass either
+    // the internal DB row id or the external trendyol_id
+    const rawId = parseInt(req.params.id, 10);
+    const catRow = db.prepare(
+        'SELECT trendyol_id FROM trendyol_kategoriler WHERE id = ? OR trendyol_id = ? LIMIT 1'
+    ).get(rawId, rawId);
+    const trendyolCatId = catRow ? catRow.trendyol_id : rawId;
+
     try {
         const response = await withTrendyolCredentialFallback(dealerId, preferredStoreId, async (store) => {
             const authString = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
-            return axios.get(`https://apigw.trendyol.com/integration/product/product-categories/${req.params.id}/attributes`, {
+            return axios.get(`https://apigw.trendyol.com/integration/product/product-categories/${trendyolCatId}/attributes`, {
                 timeout: 30000,
                 headers: {
                     'Authorization': `Basic ${authString}`,
@@ -689,7 +747,7 @@ app.get('/api/dealer/trendyol-categories/:id/attributes-v2', authMiddleware, asy
     } catch (e) {
         const detail = e.response?.data?.message || e.response?.data?.errorMessage || e.message;
         const status = e.response?.status === 401 || e.response?.status === 403 ? 502 : 500;
-        addLog('error', `Kategori özellikleri alınamadı (#${req.params.id}): ${detail}`, dealerId);
+        addLog('error', `Kategori özellikleri alınamadı (#${trendyolCatId}): ${detail}`, dealerId);
         res.status(status).json({ error: detail });
     }
 });
@@ -1261,8 +1319,8 @@ async function importXmlFeedById(dealerId, feedId) {
     const margin = marginRow?.margin ?? dealer?.profit_margin ?? 20;
 
     const insertOrUpdate = db.prepare(`
-        INSERT INTO dealer_products (dealer_id, barcode, title, category, xml_category_id, stock, cost_price, sale_price, image_url, supplier_name, xml_feed_id, brand_name)
-        VALUES (@dealer_id, @barcode, @title, @category, @xml_category_id, @stock, @cost_price, @sale_price, @image_url, @supplier_name, @xml_feed_id, @brand_name)
+        INSERT INTO dealer_products (dealer_id, barcode, title, category, xml_category_id, stock, cost_price, sale_price, image_url, supplier_name, xml_feed_id, brand_name, needs_category_review, ai_baslik, ai_aciklama, icerik_uretildi)
+        VALUES (@dealer_id, @barcode, @title, @category, @xml_category_id, @stock, @cost_price, @sale_price, @image_url, @supplier_name, @xml_feed_id, @brand_name, @needs_category_review, @ai_baslik, @ai_aciklama, @icerik_uretildi)
         ON CONFLICT(dealer_id, barcode) DO UPDATE SET
             title = excluded.title,
             category = excluded.category,
@@ -1272,6 +1330,10 @@ async function importXmlFeedById(dealerId, feedId) {
             sale_price = excluded.sale_price,
             image_url = excluded.image_url,
             brand_name = excluded.brand_name,
+            needs_category_review = excluded.needs_category_review,
+            ai_baslik = COALESCE(dealer_products.ai_baslik, excluded.ai_baslik),
+            ai_aciklama = COALESCE(dealer_products.ai_aciklama, excluded.ai_aciklama),
+            icerik_uretildi = CASE WHEN dealer_products.icerik_uretildi = 1 THEN 1 ELSE excluded.icerik_uretildi END,
             updated_at = datetime('now')
     `);
     const getCategoryMapping = db.prepare(`
@@ -1282,67 +1344,173 @@ async function importXmlFeedById(dealerId, feedId) {
         LIMIT 1
     `);
 
+    // ── FAZ 1: Her ürünü normalize et, kural tabanlı eşleştirmeyi dene ──
+    const processedItems = [];
+    // Eşleşemeyen benzersiz kategorileri topla (AI'ya tek seferde sormak için)
+    const pendingCategories = new Map(); // categoryText → { title, aciklama } (ilk örnek ürün)
+    // İçerik üretimi gereken ürünler (açıklaması boş olanlar, max 10)
+    const pendingContent = new Map(); // barcode → { title, category, brand }
+
+    for (const p of items) {
+        const barcode = String(p.barcode || p.Barcode || p.sku || p.SKU || p.code || p.Code || p['@_id'] || '').trim();
+        const title = String(p.title || p.Title || p.name || p.Name || p.baslik || '').trim();
+        if (!barcode || !title) continue;
+
+        const costPrice = parseFloat(
+            p.price         || p.Price         || p.PRICE          ||
+            p.cost_price    ||
+            p.fiyat         || p.Fiyat         || p.FIYAT          ||
+            p.list_price    || p.listPrice      || p.ListPrice      ||
+            p.birim_fiyat   || p.BirimFiyat     || p.birimFiyat     ||
+            p.satis_fiyati  || p.SatisFiyati    || p.satisFiyati    ||
+            p.urun_fiyat    || p.UrunFiyat      ||
+            p.kdv_dahil_fiyat || p.kdvDahilFiyat ||
+            p.priceWithTax  || p.priceWithVat   ||
+            p.original_price || p.originalPrice ||
+            p.regular_price  || p.regularPrice  || 0
+        );
+        const salePrice = parseFloat((costPrice * (1 + margin / 100)).toFixed(2));
+        const stock = parseInt(p.stock || p.Stock || p.quantity || p.stok || 0);
+        const brandName = String(p.brand || p.Brand || p.marka || p.Marka || p.brand_name || p.brandName || p.manufacturer || p.Manufacturer || '').trim();
+        const aciklama = String(p.description || p.Description || p.aciklama || p.Aciklama || p.desc || p.Desc || '').trim();
+        const xmlCategoryCandidates = getXmlCategoryCandidates(p);
+        const category = xmlCategoryCandidates[0] || 'Genel';
+
+        const savedMapping = getCategoryMapping.get(dealerId, category, parseInt(feedId), parseInt(feedId));
+        const ruleBasedId = savedMapping?.trendyol_category_id || getTrendyolCategoryByName(xmlCategoryCandidates) || null;
+
+        const imageUrls = [];
+        for (let i = 1; i <= 8; i++) {
+            const u = p['image' + i] || p['resim' + i] || p['foto' + i] || p['img' + i];
+            if (u && typeof u === 'string' && u.trim()) imageUrls.push(u.trim());
+            else if (u && typeof u === 'object' && (u['@_url'] || u.url)) imageUrls.push((u['@_url'] || u.url).trim());
+        }
+        if (imageUrls.length === 0) {
+            let single = p.image || p.resim || p.img || p.picture || p.foto || p.photo || p.image_url || p.imageUrl || p.gorsel || p.urun_resim || p.ImageUrl;
+            if (single && typeof single === 'string' && single.trim()) imageUrls.push(single.trim());
+            else if (single && typeof single === 'object' && (single['@_url'] || single.url)) imageUrls.push((single['@_url'] || single.url).trim());
+            else if (p.images?.image) {
+                const imgs = Array.isArray(p.images.image) ? p.images.image : [p.images.image];
+                imgs.forEach(img => {
+                    const u = typeof img === 'string' ? img : (img['@_url'] || img.url || '');
+                    if (u.trim()) imageUrls.push(u.trim());
+                });
+            }
+        }
+
+        processedItems.push({
+            barcode, title, category, stock,
+            costPrice, salePrice, brandName, aciklama,
+            imageUrl: imageUrls.join(','),
+            ruleBasedId,
+        });
+
+        if (ruleBasedId === null && !pendingCategories.has(category)) {
+            const prefix = barcode.includes('-') ? barcode.split('-')[0] : '';
+            pendingCategories.set(category, { title, aciklama, brand: brandName, barcodePrefix: prefix });
+        }
+
+        // İçerik üretimi: koşullardan biri sağlanıyorsa ve limit dolmamışsa listeye ekle
+        const needsContent = !aciklama || aciklama.length < 50
+            || !title || title.length < 30 || title.length > 100;
+        if (needsContent && pendingContent.size < 10) {
+            pendingContent.set(barcode, { title, category, brand: brandName });
+        }
+    }
+
+    // ── FAZ 2: Kural tabanlı eşleşmeyen kategoriler için AI'ya sor ──
+    // better-sqlite3 transaction'ı sync olduğundan AI çağrıları önceden yapılır
+    const tedarikciAdi = feed.supplier_name || feed.name;
+    const aiResolutions = new Map(); // categoryText → { xmlCategoryId, needsReview }
+
+    for (const [categoryText, ornek] of pendingCategories) {
+        try {
+            const oneri = await oneriKategori(
+                tedarikciAdi,
+                categoryText,
+                ornek.title,
+                ornek.aciklama,
+                ornek.brand || '',
+                ornek.barcodePrefix || ''
+            );
+            if (oneri.guven_skoru >= 0.85) {
+                aiResolutions.set(categoryText, { xmlCategoryId: oneri.trendyol_id, needsReview: 0 });
+            } else {
+                aiResolutions.set(categoryText, { xmlCategoryId: oneri.trendyol_id, needsReview: 1 });
+            }
+        } catch (err) {
+            addLog('warn', `AI kategori önerisi başarısız [${categoryText}]: ${err.message}`, dealerId);
+            aiResolutions.set(categoryText, { xmlCategoryId: null, needsReview: 1 });
+        }
+    }
+
+    // ── FAZ 2.5: Açıklaması boş ürünler için AI içerik üretimi ──
+    const aiContentMap = new Map(); // barcode → { baslik, aciklama }
+    for (const [barcode, info] of pendingContent) {
+        try {
+            const content = await urunIcerikUret(
+                { title: info.title, category: info.category, brand: info.brand },
+                dealerId
+            );
+            aiContentMap.set(barcode, content);
+        } catch (_) {
+            // Tek hata diğerlerini durdurmaz
+        }
+    }
+
+    // ── FAZ 3: Tüm veriler hazır, toplu transaction ──
+    let aiMatched = 0;
+    let aiNeedsReview = 0;
+
     const importMany = db.transaction((prods) => {
-        for (const p of prods) {
-            const barcode = String(p.barcode || p.Barcode || p.sku || p.SKU || p.code || p.Code || p['@_id'] || '').trim();
-            const title = String(p.title || p.Title || p.name || p.Name || p.baslik || '').trim();
-            if (!barcode || !title) continue;
+        for (const item of prods) {
+            let xmlCategoryId = item.ruleBasedId;
+            let needsCategoryReview = 0;
 
-            const costPrice = parseFloat(p.price || p.Price || p.cost_price || p.fiyat || 0);
-            const salePrice = parseFloat((costPrice * (1 + margin / 100)).toFixed(2));
-            const stock = parseInt(p.stock || p.Stock || p.quantity || p.stok || 0);
-            const brandName = String(p.brand || p.Brand || p.marka || p.Marka || p.brand_name || p.brandName || p.manufacturer || p.Manufacturer || '').trim();
-            const xmlCategoryCandidates = getXmlCategoryCandidates(p);
-            const category = xmlCategoryCandidates[0] || 'Genel';
-            const savedMapping = getCategoryMapping.get(dealerId, category, parseInt(feedId), parseInt(feedId));
-            const xmlCategoryId = savedMapping?.trendyol_category_id || getTrendyolCategoryByName(xmlCategoryCandidates) || null;
-
-            const _imageUrls = [];
-            for (let _i = 1; _i <= 8; _i++) {
-                const _u = p['image' + _i] || p['resim' + _i] || p['foto' + _i] || p['img' + _i];
-                if (_u && typeof _u === 'string' && _u.trim()) _imageUrls.push(_u.trim());
-                else if (_u && typeof _u === 'object' && (_u['@_url'] || _u.url)) _imageUrls.push((_u['@_url'] || _u.url).trim());
+            if (xmlCategoryId === null && aiResolutions.has(item.category)) {
+                const res = aiResolutions.get(item.category);
+                xmlCategoryId = res.xmlCategoryId;
+                needsCategoryReview = res.needsReview;
+                if (res.xmlCategoryId !== null) aiMatched++;
+                else aiNeedsReview++;
             }
-            if (_imageUrls.length === 0) {
-                let _single = p.image || p.resim || p.img || p.picture || p.foto || p.photo || p.image_url || p.imageUrl || p.gorsel || p.urun_resim || p.ImageUrl;
-                if (_single && typeof _single === 'string' && _single.trim()) _imageUrls.push(_single.trim());
-                else if (_single && typeof _single === 'object' && (_single['@_url'] || _single.url)) _imageUrls.push((_single['@_url'] || _single.url).trim());
-                else if (p.images?.image) {
-                    const imgs = Array.isArray(p.images.image) ? p.images.image : [p.images.image];
-                    imgs.forEach(i => {
-                        let u = typeof i === 'string' ? i : (i['@_url'] || i.url || '');
-                        if (u.trim()) _imageUrls.push(u.trim());
-                    });
-                }
-            }
-            const imageUrl = _imageUrls.join(',');
 
+            const aiContent = aiContentMap.get(item.barcode);
             insertOrUpdate.run({
                 dealer_id: dealerId,
-                barcode,
-                title: title.substring(0, 200),
-                category,
-                stock,
-                cost_price: costPrice,
-                sale_price: salePrice,
-                image_url: imageUrl,
+                barcode: item.barcode,
+                title: item.title.substring(0, 200),
+                category: item.category,
+                stock: item.stock,
+                cost_price: item.costPrice,
+                sale_price: item.salePrice,
+                image_url: item.imageUrl,
                 supplier_name: feed.supplier_name || 'Genel',
                 xml_feed_id: parseInt(feedId),
                 xml_category_id: xmlCategoryId,
-                brand_name: brandName || null
+                brand_name: item.brandName || null,
+                needs_category_review: needsCategoryReview,
+                ai_baslik: aiContent?.baslik || null,
+                ai_aciklama: aiContent?.aciklama || null,
+                icerik_uretildi: aiContent ? 1 : 0,
             });
         }
     });
 
-    importMany(items);
+    importMany(processedItems);
 
     const count = db.prepare('SELECT COUNT(*) as c FROM dealer_products WHERE dealer_id = ? AND xml_feed_id = ?')
         .get(dealerId, parseInt(feedId)).c;
     db.prepare("UPDATE xml_feeds SET last_imported = datetime('now'), product_count = ? WHERE id = ?")
         .run(count, feedId);
 
-    addLog('success', `XML import tamamlandı: ${count} ürün (${feed.name})`, dealerId);
-    return { ok: true, count, margin };
+    const logParts = [`XML import tamamlandı: ${count} ürün (${feed.name})`];
+    if (aiMatched > 0 || aiNeedsReview > 0) {
+        logParts.push(`AI eşleştirme: ${aiMatched} ürün başarılı, ${aiNeedsReview} ürün inceleme bekliyor`);
+    }
+    addLog('success', logParts.join(' | '), dealerId);
+
+    return { ok: true, count, margin, aiMatched, aiNeedsReview };
 }
 
 app.post('/api/dealer/xml-feeds/:id/import', authMiddleware, async (req, res) => {
@@ -1513,6 +1681,544 @@ app.post('/api/dealer/products/bulk-stock', authMiddleware, async (req, res) => 
         if (String(process.env.AUTO_PUSH_TRENDYOL_STOCK || '').toLowerCase() === 'true') {
             await pushDealerStocksToTrendyol(dealerId, null, true);
         }
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ══════════════════════════════════════════════════════════════
+// KATEGORİ İNCELEME
+// ══════════════════════════════════════════════════════════════
+
+app.get('/api/dealer/products/needs-review', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    try {
+        const products = db.prepare(`
+            SELECT
+                dp.id, dp.barcode, dp.title, dp.supplier_name,
+                dp.xml_category_id, dp.needs_category_review,
+                ke.id          AS eslestirme_id,
+                ke.guven_skoru,
+                ke.kullanici_onayladi,
+                tk.trendyol_id AS trendyol_category_id,
+                tk.tam_yol
+            FROM dealer_products dp
+            LEFT JOIN kategori_eslestirme ke
+                ON ke.tedarikci_adi = dp.supplier_name
+                AND ke.trendyol_kategori_id = (
+                    SELECT id FROM trendyol_kategoriler WHERE trendyol_id = dp.xml_category_id LIMIT 1
+                )
+            LEFT JOIN trendyol_kategoriler tk ON tk.id = ke.trendyol_kategori_id
+            WHERE dp.dealer_id = ? AND dp.needs_category_review = 1
+            ORDER BY dp.updated_at DESC
+            LIMIT 200
+        `).all(dealerId);
+        res.json({ products, count: products.length });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/dealer/products/:id/approve-category', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    const productId = parseInt(req.params.id);
+    const { trendyol_category_id, eslestirme_id } = req.body;
+
+    if (!trendyol_category_id) {
+        return res.status(400).json({ error: 'trendyol_category_id gerekli' });
+    }
+
+    try {
+        db.prepare(`
+            UPDATE dealer_products
+            SET xml_category_id = ?, needs_category_review = 0, updated_at = datetime('now')
+            WHERE id = ? AND dealer_id = ?
+        `).run(trendyol_category_id, productId, dealerId);
+
+        // Hafıza onayı
+        if (eslestirme_id) {
+            try { kullaniciOnayla(eslestirme_id); } catch (_) {}
+        }
+
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/dealer/products/bulk-ai-match', authMiddleware, async (req, res) => {
+    const dealerId = req.dealer.id;
+    try {
+        const pending = db.prepare(`
+            SELECT id, barcode, title, supplier_name, category, brand_name
+            FROM dealer_products
+            WHERE dealer_id = ? AND needs_category_review = 1
+            LIMIT 200
+        `).all(dealerId);
+
+        if (!pending.length) return res.json({ matched: 0, remaining: 0 });
+
+        // Benzersiz (supplier_name, category) grupları — her grup için tek AI çağrısı
+        const groups = new Map(); // key: "supplier|category" → { tedarikci, kategoriMetni, ornek, brand, barcodePrefix, ids[] }
+        for (const p of pending) {
+            const tedarikci = p.supplier_name || 'Genel';
+            const kategoriMetni = (p.category || p.title || '').trim();
+            const key = `${tedarikci}|||${kategoriMetni}`;
+            if (!groups.has(key)) {
+                const prefix = p.barcode && p.barcode.includes('-') ? p.barcode.split('-')[0] : '';
+                groups.set(key, { tedarikci, kategoriMetni, ornek: p.title, brand: p.brand_name || '', barcodePrefix: prefix, ids: [] });
+            }
+            groups.get(key).ids.push(p.id);
+        }
+
+        const updateStmt = db.prepare(`
+            UPDATE dealer_products
+            SET xml_category_id = ?, needs_category_review = 0, updated_at = datetime('now')
+            WHERE id = ? AND dealer_id = ?
+        `);
+        const applyMany = db.transaction((ids, trendyolId) => {
+            for (const id of ids) updateStmt.run(trendyolId, id, dealerId);
+        });
+
+        let matched = 0;
+        let _ilkGrup = true;
+        for (const { tedarikci, kategoriMetni, ornek, brand, barcodePrefix, ids } of groups.values()) {
+            try {
+                const result = await oneriKategori(tedarikci, kategoriMetni, ornek, '', brand, barcodePrefix);
+                if (result.trendyol_id) {
+                    const review = result.guven_skoru >= 0.85 ? 0 : 1;
+                    const applyWithReview = db.transaction((productIds, trendyolId, needsReview) => {
+                        for (const id of productIds) {
+                            db.prepare(`UPDATE dealer_products SET xml_category_id = ?, needs_category_review = ?, updated_at = datetime('now') WHERE id = ? AND dealer_id = ?`)
+                              .run(trendyolId, needsReview, id, dealerId);
+                        }
+                    });
+                    applyWithReview(ids, result.trendyol_id, review);
+                    if (review === 0 && result.eslestirme_id) {
+                        try { kullaniciOnayla(result.eslestirme_id); } catch (_) {}
+                    }
+                    if (review === 0) matched += ids.length;
+                }
+            } catch (_) {
+                // Tek grup hatası diğerlerini durdurmamalı
+            }
+        }
+
+        const remaining = db.prepare(
+            'SELECT COUNT(*) as c FROM dealer_products WHERE dealer_id = ? AND needs_category_review = 1'
+        ).get(dealerId).c;
+
+        addLog('info', `Toplu AI kategori eşleştirme: ${groups.size} kategori sorgulandı, ${matched} ürün eşleşti, ${remaining} kaldı`, dealerId);
+        res.json({ matched, remaining, categories: groups.size });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── POST /api/dealer/categories/rematch-pending ───────────────────────────────
+// needs_category_review=1 olan TÜM ürünleri yeni prompt ile yeniden eşleştirir.
+// Hafızadaki onayları sıfırlar (kullanici_onayladi=0) → AI yeniden sorar.
+// Sonuçta needs_category_review=1 bırakır → kullanıcı Kategori Yönetimi'nde onaylar.
+app.post('/api/dealer/categories/rematch-pending', authMiddleware, async (req, res) => {
+    const dealerId = req.dealer.id;
+    try {
+        const pending = db.prepare(`
+            SELECT id, barcode, title, supplier_name, category, brand_name
+            FROM dealer_products
+            WHERE dealer_id = ? AND needs_category_review = 1
+        `).all(dealerId);
+
+        if (!pending.length) return res.json({ remapped: 0, skipped: 0, total: 0 });
+
+        // Benzersiz (supplier_name, category) grupları — her grup için tek AI çağrısı
+        const groups = new Map();
+        for (const p of pending) {
+            const tedarikci = p.supplier_name || 'Genel';
+            const kategoriMetni = (p.category || p.title || '').trim();
+            const key = `${tedarikci}|||${kategoriMetni}`;
+            if (!groups.has(key)) {
+                const prefix = p.barcode && p.barcode.includes('-') ? p.barcode.split('-')[0] : '';
+                groups.set(key, { tedarikci, kategoriMetni, ornek: p.title, brand: p.brand_name || '', barcodePrefix: prefix, ids: [] });
+            }
+            groups.get(key).ids.push(p.id);
+        }
+
+        // Hafızadaki onayları sıfırla — bu grupların hafıza kaydı varsa kullanici_onayladi=0 yap
+        // Böylece oneriKategori yeni prompt ile AI'a sorar (cache bypass)
+        const resetHafiza = db.prepare(`
+            UPDATE kategori_eslestirme
+            SET kullanici_onayladi = 0
+            WHERE tedarikci_adi = ? AND xml_kategori_metni = ?
+        `);
+        const resetTx = db.transaction(() => {
+            for (const { tedarikci, kategoriMetni } of groups.values()) {
+                resetHafiza.run(tedarikci, kategoriMetni);
+            }
+        });
+        resetTx();
+
+        const applyUpdate = db.prepare(`
+            UPDATE dealer_products
+            SET xml_category_id = ?, needs_category_review = 1, updated_at = datetime('now')
+            WHERE id = ? AND dealer_id = ?
+        `);
+        const applyTx = (ids, trendyolId) => db.transaction(
+            () => ids.forEach(id => applyUpdate.run(trendyolId, id, dealerId))
+        )();
+
+        let remapped = 0;
+        let skipped = 0;
+        for (const { tedarikci, kategoriMetni, ornek, brand, barcodePrefix, ids } of groups.values()) {
+            try {
+                const result = await oneriKategori(tedarikci, kategoriMetni, ornek, '', brand, barcodePrefix);
+                if (result.trendyol_id) {
+                    applyTx(ids, result.trendyol_id);
+                    remapped += ids.length;
+                } else {
+                    skipped += ids.length;
+                }
+            } catch (_) {
+                skipped += ids.length;
+            }
+        }
+
+        // Her xml_kategori_metni için en iyi kaydı (kullanici_onayladi DESC, guven_skoru DESC, en yeni)
+        // dışındaki zayıf duplikatları sil — JOIN her zaman tek satır döndürsün
+        try {
+            db.prepare(`
+                DELETE FROM kategori_eslestirme
+                WHERE id NOT IN (
+                    SELECT (
+                        SELECT ke2.id FROM kategori_eslestirme ke2
+                        WHERE ke2.xml_kategori_metni = ke.xml_kategori_metni
+                        ORDER BY ke2.kullanici_onayladi DESC, ke2.guven_skoru DESC, ke2.id DESC
+                        LIMIT 1
+                    )
+                    FROM (SELECT DISTINCT xml_kategori_metni FROM kategori_eslestirme) ke
+                )
+            `).run();
+        } catch (_) {}
+
+        addLog('info',
+            `rematch-pending: ${groups.size} kategori, ${remapped} ürün yeniden eşleştirildi, ${skipped} atlandı`,
+            dealerId
+        );
+        res.json({ remapped, skipped, total: pending.length, categories: groups.size });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/dealer/categories/search', authMiddleware, (req, res) => {
+    const query = String(req.query.q || '').trim();
+    if (!query) return res.json([]);
+    try {
+        const results = searchKategoriler(query);
+        res.json(results);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── GET /api/dealer/categories/all ─────────────────────────────────────────
+// Tüm ürünleri kategori bilgisi, AI güven skoru ve onay durumuyla döndürür
+app.get('/api/dealer/categories/all', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    try {
+        const { filter = 'all', page = 1, limit = 100 } = req.query;
+        const pageNum  = Math.max(1, parseInt(page, 10) || 1);
+        const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10) || 100));
+        const offset   = (pageNum - 1) * limitNum;
+
+        let where = 'dp.dealer_id = ?';
+        if (filter === 'pending')  where += ' AND dp.needs_category_review = 1';
+        if (filter === 'approved') where += ' AND dp.needs_category_review = 0 AND dp.xml_category_id IS NOT NULL';
+        if (filter === 'missing')  where += ' AND dp.xml_category_id IS NULL';
+
+        const rows = db.prepare(`
+            SELECT
+                dp.id,
+                dp.barcode,
+                dp.title,
+                dp.brand_name,
+                dp.category            AS xml_category,
+                dp.xml_category_id     AS trendyol_id,
+                dp.needs_category_review,
+                dp.attributes_json,
+                tk.kategori_adi        AS trendyol_adi,
+                tk.tam_yol,
+                tk.trendyol_id         AS trendyol_cat_id,
+                ke.id                  AS eslestirme_id,
+                ke.guven_skoru,
+                ke.kullanici_onayladi
+            FROM dealer_products dp
+            LEFT JOIN trendyol_kategoriler tk ON tk.id = COALESCE(
+                    (SELECT id FROM trendyol_kategoriler WHERE trendyol_id = dp.xml_category_id LIMIT 1),
+                    dp.xml_category_id
+                )
+            LEFT JOIN kategori_eslestirme ke ON ke.id = (
+                    SELECT id FROM kategori_eslestirme
+                    WHERE xml_kategori_metni = dp.category
+                    ORDER BY kullanici_onayladi DESC, guven_skoru DESC, id DESC
+                    LIMIT 1
+                )
+            WHERE ${where}
+            ORDER BY dp.needs_category_review DESC, dp.title ASC
+            LIMIT ? OFFSET ?
+        `).all(dealerId, limitNum, offset);
+
+        const { total } = db.prepare(`
+            SELECT COUNT(*) AS total FROM dealer_products dp WHERE ${where}
+        `).get(dealerId);
+
+        const { pending_count } = db.prepare(
+            'SELECT COUNT(*) AS pending_count FROM dealer_products WHERE dealer_id = ? AND needs_category_review = 1'
+        ).get(dealerId);
+
+        res.json({ products: rows, total, page: pageNum, totalPages: Math.ceil(total / limitNum), pending_count });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── PUT /api/dealer/categories/bulk-approve ──────────────────────────────────
+// Seçili ürün id'leri için needs_category_review = 0 yapar
+app.put('/api/dealer/categories/bulk-approve', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    const { ids } = req.body; // number[]
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'ids dizisi zorunludur' });
+    }
+    try {
+        const stmt = db.prepare(`
+            UPDATE dealer_products
+            SET needs_category_review = 0, updated_at = datetime('now')
+            WHERE id = ? AND dealer_id = ?
+        `);
+        const tx = db.transaction((list) => { for (const id of list) stmt.run(id, dealerId); });
+        tx(ids);
+        res.json({ updated: ids.length });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Yanlış kategoriye gitmiş ürünleri sıfırla ve yeniden eşleştirmeye hazırla
+app.post('/api/dealer/products/reset-categories', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    try {
+        // needs_category_review = 1 olan veya xml_category_id null olan ürünlerin
+        // barcode listesini al
+        const affectedProducts = db.prepare(`
+            SELECT barcode, supplier_name
+            FROM dealer_products
+            WHERE dealer_id = ?
+              AND (needs_category_review = 1 OR xml_category_id IS NULL)
+        `).all(dealerId);
+
+        if (affectedProducts.length === 0) {
+            return res.json({ reset: 0, message: 'Sıfırlanacak ürün bulunamadı.' });
+        }
+
+        // Bu ürünlerin tedarikçi adlarına ait kategori_eslestirme kayıtlarını temizle
+        const supplierNames = [...new Set(affectedProducts.map(p => p.supplier_name).filter(Boolean))];
+        let eslestirmeDeleted = 0;
+        if (supplierNames.length > 0) {
+            const placeholders = supplierNames.map(() => '?').join(',');
+            const delResult = db.prepare(
+                `DELETE FROM kategori_eslestirme WHERE tedarikci_adi IN (${placeholders})`
+            ).run(...supplierNames);
+            eslestirmeDeleted = delResult.changes;
+        }
+
+        // Tüm etkilenen ürünleri needs_category_review = 1 yap,
+        // xml_category_id'yi de NULL'a çek ki yeniden eşleştirilsin
+        const resetResult = db.prepare(`
+            UPDATE dealer_products
+            SET xml_category_id = NULL,
+                needs_category_review = 1,
+                updated_at = datetime('now')
+            WHERE dealer_id = ?
+              AND (needs_category_review = 1 OR xml_category_id IS NULL)
+        `).run(dealerId);
+
+        addLog('info',
+            `reset-categories: ${resetResult.changes} ürün sıfırlandı, ${eslestirmeDeleted} eşleştirme kaydı silindi`,
+            dealerId
+        );
+
+        res.json({
+            reset: resetResult.changes,
+            eslestirme_silindi: eslestirmeDeleted,
+            message: `${resetResult.changes} ürün kategori incelemesine alındı, ${eslestirmeDeleted} eşleştirme kaydı temizlendi.`,
+        });
+    } catch (e) {
+        addLog('error', `reset-categories hatası: ${e.message}`, dealerId);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Toplu kategori güncelleme (eski xml_category_id → yeni)
+app.put('/api/dealer/products/bulk-update-category', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    const { xml_category_id_eski, xml_category_id_yeni } = req.body;
+
+    if (!xml_category_id_eski || !xml_category_id_yeni) {
+        return res.status(400).json({ error: 'xml_category_id_eski ve xml_category_id_yeni zorunludur' });
+    }
+
+    try {
+        // trendyol_kategoriler.id (PK) değerlerini bul
+        const eskiKat = db.prepare('SELECT id FROM trendyol_kategoriler WHERE trendyol_id = ?').get(xml_category_id_eski);
+        const yeniKat = db.prepare('SELECT id FROM trendyol_kategoriler WHERE trendyol_id = ?').get(xml_category_id_yeni);
+
+        let updatedProducts = 0;
+        let updatedMappings = 0;
+
+        db.transaction(() => {
+            // dealer_products güncelle
+            const dpResult = db.prepare(
+                'UPDATE dealer_products SET xml_category_id = ? WHERE dealer_id = ? AND xml_category_id = ?'
+            ).run(xml_category_id_yeni, dealerId, xml_category_id_eski);
+            updatedProducts = dpResult.changes;
+
+            // kategori_eslestirme güncelle (eğer eski kategori için kayıt varsa)
+            if (eskiKat && yeniKat) {
+                const keResult = db.prepare(
+                    'UPDATE kategori_eslestirme SET trendyol_kategori_id = ? WHERE trendyol_kategori_id = ?'
+                ).run(yeniKat.id, eskiKat.id);
+                updatedMappings = keResult.changes;
+            }
+        })();
+
+        addLog('info',
+            `bulk-update-category: ${xml_category_id_eski}→${xml_category_id_yeni}, ${updatedProducts} ürün, ${updatedMappings} eşleştirme güncellendi`,
+            dealerId
+        );
+
+        res.json({ updated: updatedProducts, mappings_updated: updatedMappings });
+    } catch (e) {
+        addLog('error', `bulk-update-category hatası: ${e.message}`, dealerId);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ══════════════════════════════════════════════════════════════
+// AI İÇERİK ÜRETİMİ
+// ══════════════════════════════════════════════════════════════
+
+app.get('/api/dealer/products/needs-content', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    try {
+        const row = db.prepare(
+            'SELECT COUNT(*) as c FROM dealer_products WHERE dealer_id = ? AND icerik_uretildi = 0'
+        ).get(dealerId);
+        res.json({ count: row.c });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/dealer/products/bulk-generate-content', authMiddleware, async (req, res) => {
+    const dealerId = req.dealer.id;
+    try {
+        const products = db.prepare(`
+            SELECT id, title, category, supplier_name
+            FROM dealer_products
+            WHERE dealer_id = ? AND icerik_uretildi = 0
+            LIMIT 50
+        `).all(dealerId);
+
+        if (!products.length) return res.json({ generated: 0, remaining: 0 });
+
+        const updateStmt = db.prepare(`
+            UPDATE dealer_products
+            SET ai_baslik = ?, ai_aciklama = ?, icerik_uretildi = 1, updated_at = datetime('now')
+            WHERE id = ? AND dealer_id = ?
+        `);
+
+        let generated = 0;
+        for (const p of products) {
+            try {
+                const { baslik, aciklama } = await urunIcerikUret({
+                    title: p.title,
+                    category: p.category,
+                    brand: p.supplier_name,
+                }, dealerId);
+                updateStmt.run(baslik, aciklama, p.id, dealerId);
+                generated++;
+            } catch (_) {
+                // Tek hata diğerlerini durdurmaz
+            }
+        }
+
+        const remaining = db.prepare(
+            'SELECT COUNT(*) as c FROM dealer_products WHERE dealer_id = ? AND icerik_uretildi = 0'
+        ).get(dealerId).c;
+
+        addLog('info', `Toplu AI içerik üretimi: ${generated} ürün tamamlandı, ${remaining} kaldı`, dealerId);
+        res.json({ generated, remaining });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/dealer/products/:id/generate-content', authMiddleware, async (req, res) => {
+    const dealerId = req.dealer.id;
+    const productId = parseInt(req.params.id);
+    try {
+        const product = db.prepare(
+            'SELECT id, title, category, supplier_name FROM dealer_products WHERE id = ? AND dealer_id = ?'
+        ).get(productId, dealerId);
+        if (!product) return res.status(404).json({ error: 'Ürün bulunamadı' });
+
+        const { baslik, aciklama } = await urunIcerikUret({
+            title: product.title,
+            category: product.category,
+            brand: product.supplier_name,
+        }, dealerId);
+
+        db.prepare(`
+            UPDATE dealer_products
+            SET ai_baslik = ?, ai_aciklama = ?, icerik_uretildi = 1, updated_at = datetime('now')
+            WHERE id = ? AND dealer_id = ?
+        `).run(baslik, aciklama, productId, dealerId);
+
+        res.json({ ok: true, baslik, aciklama });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/dealer/products/:id/ai-content', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    const productId = parseInt(req.params.id);
+    try {
+        const row = db.prepare(
+            'SELECT ai_baslik, ai_aciklama, icerik_uretildi FROM dealer_products WHERE id = ? AND dealer_id = ?'
+        ).get(productId, dealerId);
+        if (!row) return res.status(404).json({ error: 'Ürün bulunamadı' });
+        res.json(row);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.patch('/api/dealer/products/:id/ai-content', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    const productId = parseInt(req.params.id);
+    const { ai_baslik, ai_aciklama } = req.body;
+    try {
+        db.prepare(`
+            UPDATE dealer_products
+            SET ai_baslik = ?, ai_aciklama = ?, icerik_uretildi = 1, updated_at = datetime('now')
+            WHERE id = ? AND dealer_id = ?
+        `).run(
+            ai_baslik != null ? String(ai_baslik).substring(0, 100) : null,
+            ai_aciklama != null ? String(ai_aciklama) : null,
+            productId, dealerId
+        );
         res.json({ ok: true });
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -1698,6 +2404,275 @@ app.use('/api/questions', authMiddleware, questionsRouter);
 app.use('/api', authMiddleware, require('./routes/profit'));
 app.use('/api/forecast', authMiddleware, forecastRouter);
 app.use('/api/analytics', authMiddleware, analyticsRouter);
+app.use('/api/pricing', authMiddleware, pricingRouter);
+app.use('/api/health',  authMiddleware, healthRouter);
+app.use('/api/stock',  authMiddleware, require('./routes/stock'));
+
+// ── ÜRÜN ATTRIBUTE KAYDETME ────────────────────────────────────
+app.post('/api/products/:id/attributes', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    const productId = parseInt(req.params.id, 10);
+    if (!Number.isFinite(productId)) return res.status(400).json({ error: 'Geçersiz ürün ID' });
+    const { attributes } = req.body;
+    if (!Array.isArray(attributes)) return res.status(400).json({ error: 'attributes dizisi zorunlu' });
+    const result = db.prepare(
+        'UPDATE dealer_products SET attributes_json = ? WHERE id = ? AND dealer_id = ?'
+    ).run(JSON.stringify(attributes), productId, dealerId);
+    if (!result.changes) return res.status(404).json({ error: 'Ürün bulunamadı' });
+    res.json({ ok: true });
+});
+
+// ── TOPLU ATTRIBUTE DOLDURMA (SSE) ─────────────────────────────
+// EventSource GET-only olduğu için token query param'dan alınır
+app.get('/api/products/attributes/auto-fill', authMiddleware, async (req, res) => {
+        const dealerId  = req.dealer.id;
+        const limitNum  = Math.min(25000, Math.max(1, parseInt(req.query.limit || '100', 10) || 100));
+        const BATCH     = 50;
+        const DELAY_MS  = 2000;
+
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+
+        const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+
+        try {
+            const products = db.prepare(`
+                SELECT dp.id, dp.title,
+                       COALESCE(tk.trendyol_id, dp.xml_category_id) AS trendyol_cat_id,
+                       tk.tam_yol
+                FROM dealer_products dp
+                LEFT JOIN trendyol_kategoriler tk ON tk.trendyol_id = dp.xml_category_id
+                WHERE dp.dealer_id = ?
+                  AND (dp.attributes_json IS NULL OR dp.attributes_json = '' OR dp.attributes_json = '[]')
+                  AND dp.xml_category_id IS NOT NULL
+                  AND dp.needs_category_review = 0
+                ORDER BY
+                  -- Leaf kategoriler önce (tam_yol'da '>' ne kadar çoksa o kadar derin = leaf)
+                  (LENGTH(COALESCE(tk.tam_yol,'')) - LENGTH(REPLACE(COALESCE(tk.tam_yol,''), '>', ''))) DESC,
+                  dp.id ASC
+                LIMIT ?
+            `).all(dealerId, limitNum);
+
+            send({ type: 'start', total: products.length });
+
+            if (products.length === 0) {
+                send({ type: 'done', filled: 0, skipped: 0, errors: 0 });
+                return res.end();
+            }
+
+            // Cache Trendyol attribute'larını kategori başına bir kez çek
+            const catCache = new Map();
+            async function getCatAttrs(catId) {
+                if (catCache.has(catId)) return catCache.get(catId);
+                try {
+                    const resp = await withTrendyolCredentialFallback(dealerId, null, async (store) => {
+                        const auth = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
+                        return axios.get(
+                            `https://apigw.trendyol.com/integration/product/product-categories/${catId}/attributes`,
+                            { timeout: 15000, headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json', 'User-Agent': `${store.supplier_id} - SelfIntegration` } }
+                        );
+                    });
+                    const attrs = (resp.data?.categoryAttributes || []).map(a => ({
+                        id: a.attribute?.id, name: a.attribute?.name,
+                        required: !!a.required, allow_custom: !!a.allowCustom,
+                        values: (a.attributeValues || []).map(v => ({ id: v.id, name: v.name }))
+                    })).filter(a => a.id && a.name);
+                    catCache.set(catId, attrs);
+                    return attrs;
+                } catch (_) {
+                    catCache.set(catId, []);
+                    return [];
+                }
+            }
+
+            const updateStmt = db.prepare(
+                'UPDATE dealer_products SET attributes_json = ? WHERE id = ? AND dealer_id = ?'
+            );
+
+            let filled = 0, skipped = 0, errors = 0;
+            const skipReasons = {}; // reason → count
+
+            function recordSkip(reason) {
+                skipped++;
+                skipReasons[reason] = (skipReasons[reason] || 0) + 1;
+                return reason;
+            }
+
+            for (let i = 0; i < products.length; i += BATCH) {
+                const batch = products.slice(i, i + BATCH);
+
+                for (let j = 0; j < batch.length; j++) {
+                    const p = batch[j];
+                    let skipReason = null;
+                    try {
+                        const attrs    = await getCatAttrs(p.trendyol_cat_id);
+                        const required = attrs.filter(a => a.required);
+                        if (attrs.length === 0) {
+                            // Trendyol returned nothing — likely a parent/non-leaf category
+                            skipReason = recordSkip('no_cat_attributes');
+                        } else if (required.length === 0) {
+                            // Category has attributes but none are marked required
+                            skipReason = recordSkip('no_required_attributes');
+                        } else {
+                            const predicted = await oneriAttributeDoldur(p.title, required);
+                            if (predicted.length > 0) {
+                                updateStmt.run(JSON.stringify(predicted), p.id, dealerId);
+                                filled++;
+                            } else {
+                                skipReason = recordSkip('ai_no_result');
+                            }
+                        }
+                    } catch (e) {
+                        errors++;
+                        addLog('error', `auto-fill hatası [${p.title}]: ${e.message}`, dealerId);
+                    }
+                    send({
+                        type: 'progress',
+                        processed: i + j + 1,
+                        total: products.length,
+                        filled, skipped, errors,
+                        ...(skipReason && { skipReason, skipTitle: p.title.slice(0, 50) })
+                    });
+                }
+
+                if (i + BATCH < products.length) {
+                    await new Promise(r => setTimeout(r, DELAY_MS));
+                }
+            }
+
+            send({ type: 'done', filled, skipped, errors, skipReasons });
+        } catch (e) {
+            send({ type: 'error', message: e.message });
+        }
+
+        res.end();
+    }
+);
+
+// ── XML KATEGORİ DOĞRULAMA ────────────────────────────────────────────────
+app.get('/api/dealer/categories/verify-xml-stream', authMiddleware, async (req, res) => {
+    const dealerId = req.dealer.id;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+
+    try {
+        const combos = db.prepare(`
+            SELECT dp.category, dp.xml_category_id, dp.supplier_name,
+                   COUNT(*) AS product_count,
+                   tk.tam_yol AS current_path
+            FROM dealer_products dp
+            LEFT JOIN trendyol_kategoriler tk ON tk.trendyol_id = dp.xml_category_id
+            WHERE dp.dealer_id = ?
+              AND dp.xml_category_id IS NOT NULL
+              AND dp.needs_category_review = 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM kategori_eslestirme ke
+                  WHERE ke.tedarikci_adi = dp.supplier_name
+                    AND ke.xml_kategori_metni = dp.category
+              )
+            GROUP BY dp.category, dp.xml_category_id, dp.supplier_name
+            ORDER BY product_count DESC
+        `).all(dealerId);
+
+        send({ type: 'start', total: combos.length });
+
+        if (combos.length === 0) {
+            send({ type: 'done', verified: 0, changed: 0, low_confidence: 0, errors: 0 });
+            return res.end();
+        }
+
+        let verified = 0, changed = 0, low_confidence = 0, errors = 0;
+
+        for (let i = 0; i < combos.length; i++) {
+            const combo = combos[i];
+            try {
+                const result = await oneriKategori(
+                    combo.supplier_name,
+                    combo.category,
+                    combo.category
+                );
+
+                const isSame = result.trendyol_id === combo.xml_category_id;
+
+                if (isSame) {
+                    verified++;
+                    send({
+                        type: 'progress', current: i + 1, total: combos.length,
+                        category: combo.category, result: 'verified',
+                        current_path: combo.current_path,
+                        suggested_path: result.tam_yol,
+                        affected_products: combo.product_count,
+                        guven_skoru: result.guven_skoru
+                    });
+                } else if (result.guven_skoru >= 0.70) {
+                    db.prepare(`
+                        UPDATE dealer_products
+                        SET needs_category_review = 1, updated_at = datetime('now')
+                        WHERE dealer_id = ? AND category = ? AND xml_category_id = ?
+                    `).run(dealerId, combo.category, combo.xml_category_id);
+                    changed++;
+                    send({
+                        type: 'progress', current: i + 1, total: combos.length,
+                        category: combo.category, result: 'changed',
+                        current_path: combo.current_path,
+                        suggested_path: result.tam_yol,
+                        affected_products: combo.product_count,
+                        guven_skoru: result.guven_skoru
+                    });
+                } else {
+                    low_confidence++;
+                    send({
+                        type: 'progress', current: i + 1, total: combos.length,
+                        category: combo.category, result: 'low_confidence',
+                        current_path: combo.current_path,
+                        suggested_path: result.tam_yol,
+                        affected_products: combo.product_count,
+                        guven_skoru: result.guven_skoru
+                    });
+                }
+            } catch (e) {
+                errors++;
+                addLog('error', `verify-xml hatası [${combo.category}]: ${e.message}`, dealerId);
+                send({
+                    type: 'progress', current: i + 1, total: combos.length,
+                    category: combo.category, result: 'error',
+                    affected_products: combo.product_count
+                });
+            }
+
+            if (i < combos.length - 1) {
+                await new Promise(r => setTimeout(r, 300));
+            }
+        }
+
+        send({ type: 'done', verified, changed, low_confidence, errors });
+    } catch (e) {
+        send({ type: 'error', message: e.message });
+    }
+
+    res.end();
+});
+
+// ── KATEGORİ BAZLI TOPLU ATTRIBUTE ATAMA ───────────────────────
+app.post('/api/products/attributes/bulk-by-category', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    const { categoryId, attributes } = req.body;
+    if (!categoryId || !Array.isArray(attributes) || attributes.length === 0) {
+        return res.status(400).json({ error: 'categoryId ve attributes zorunlu' });
+    }
+    const result = db.prepare(`
+        UPDATE dealer_products SET attributes_json = ?
+        WHERE dealer_id = ? AND xml_category_id = ? AND needs_category_review = 0
+    `).run(JSON.stringify(attributes), dealerId, Number(categoryId));
+    res.json({ updated: result.changes });
+});
 
 // ── BAYI AYARLARI ──────────────────────────────────────────────
 app.get('/api/dealer/settings', authMiddleware, (req, res) => {
@@ -1723,6 +2698,72 @@ app.put('/api/dealer/settings', authMiddleware, (req, res) => {
     });
     update();
     res.json({ ok: true });
+});
+
+// ── MARKA YÖNETİMİ ─────────────────────────────────────────────
+app.get('/api/brands/search', authMiddleware, async (req, res) => {
+    const q = String(req.query.q || '').trim();
+    if (!q) return res.json([]);
+    try {
+        const response = await withTrendyolCredentialFallback(req.dealer.id, null, async (store) => {
+            const auth = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
+            return axios.get(`https://apigw.trendyol.com/integration/product/brands/by-name?name=${encodeURIComponent(q)}`, {
+                timeout: 10000,
+                headers: {
+                    Authorization: `Basic ${auth}`,
+                    'Content-Type': 'application/json',
+                    'User-Agent': `${store.supplier_id} - SelfIntegration`,
+                },
+            });
+        });
+        res.json(response.data || []);
+    } catch (err) {
+        const detail = err.response?.data?.message || err.message;
+        res.status(502).json({ error: `Trendyol API hatası: ${detail}` });
+    }
+});
+
+app.post('/api/brands/save', authMiddleware, (req, res) => {
+    const { trendyol_brand_id, name } = req.body;
+    if (!trendyol_brand_id || !name) {
+        return res.status(400).json({ error: 'trendyol_brand_id ve name zorunlu' });
+    }
+    const brandId = Number(trendyol_brand_id);
+
+    const upsertBrand = db.prepare(`
+        INSERT INTO brands (trendyol_brand_id, name)
+        VALUES (?, ?)
+        ON CONFLICT(trendyol_brand_id) DO UPDATE SET name = excluded.name
+    `);
+    const upsertSetting = db.prepare(`
+        INSERT INTO dealer_settings (dealer_id, key, value, updated_at)
+        VALUES (?, 'active_brand_id', ?, datetime('now'))
+        ON CONFLICT(dealer_id, key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
+    `);
+    const updateProducts = db.prepare(`
+        UPDATE dealer_products SET brand_id = ? WHERE dealer_id = ?
+    `);
+
+    const tx = db.transaction(() => {
+        upsertBrand.run(brandId, String(name));
+        upsertSetting.run(req.dealer.id, String(brandId));
+        updateProducts.run(brandId, req.dealer.id);
+    });
+    tx();
+
+    res.json({ ok: true, trendyol_brand_id: brandId, name: String(name) });
+});
+
+app.get('/api/brands/active', authMiddleware, (req, res) => {
+    const setting = db.prepare(
+        `SELECT value FROM dealer_settings WHERE dealer_id = ? AND key = 'active_brand_id'`
+    ).get(req.dealer.id);
+    if (!setting) return res.json(null);
+
+    const brand = db.prepare(
+        `SELECT trendyol_brand_id AS id, name FROM brands WHERE trendyol_brand_id = ?`
+    ).get(Number(setting.value));
+    res.json(brand || null);
 });
 
 app.get('/api/dealer/orders/:orderNumber', authMiddleware, (req, res) => {
@@ -2122,6 +3163,35 @@ function getTrendyolCategoryByName(...categoryNames) {
     return null; // Bulunamazsa getCategoryId titre devam etsin
 }
 
+// ── MARKA YÖNETİMİ ──────────────────────────────────────────
+// GET /api/dealer/brands — daha önce kaydedilmiş markaları döndürür
+app.get('/api/dealer/brands', authMiddleware, (req, res) => {
+    try {
+        const rows = db.prepare(
+            'SELECT trendyol_brand_id as id, name FROM brands ORDER BY name ASC'
+        ).all();
+        res.json(rows);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST /api/dealer/brands — seçilen markayı yerel tabloya kaydet
+app.post('/api/dealer/brands', authMiddleware, (req, res) => {
+    const { trendyol_brand_id, name } = req.body;
+    if (!trendyol_brand_id || !name) {
+        return res.status(400).json({ error: 'trendyol_brand_id ve name zorunludur' });
+    }
+    try {
+        db.prepare(
+            'INSERT INTO brands (trendyol_brand_id, name) VALUES (?, ?) ON CONFLICT(trendyol_brand_id) DO UPDATE SET name = excluded.name'
+        ).run(parseInt(trendyol_brand_id), name);
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Brand adından Trendyol brand ID'yi çeker (önbellekli)
 const brandIdCache = new Map();
 async function resolveBrandId(brandName, authString, supplierId) {
@@ -2152,7 +3222,8 @@ async function resolveBrandId(brandName, authString, supplierId) {
 
 app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
     const dealerId = req.dealer.id;
-    const { store_id } = req.body;
+    const { store_id, brand_id } = req.body;
+    const overrideBrandId = brand_id ? parseInt(brand_id) : null;
     let store;
     if (store_id) {
         store = db.prepare('SELECT * FROM stores WHERE id = ? AND dealer_id = ?').get(store_id, dealerId);
@@ -2224,6 +3295,140 @@ app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
                 { attributeId: 348, attributeValueId: 686230 }
             ];
 
+            // Kategori başına bir kez çekilir, tekrar istek atılmaz
+            const categoryAttrCache = new Map(); // categoryId → [{ id, name, allowCustom, values }]
+
+            async function getRequiredAttrs(categoryId) {
+                if (categoryAttrCache.has(categoryId)) return categoryAttrCache.get(categoryId);
+                console.log(`[upload] getRequiredAttrs çağrılıyor, kategori: ${categoryId}`);
+                try {
+                    const res = await axios.get(
+                        `https://apigw.trendyol.com/integration/product/product-categories/${categoryId}/attributes`,
+                        {
+                            timeout: 15000,
+                            headers: {
+                                'Authorization': `Basic ${authString}`,
+                                'User-Agent': `${store.supplier_id} - SelfIntegration`,
+                            }
+                        }
+                    );
+                    const categoryAttrs = res.data?.categoryAttributes || [];
+                    const required = categoryAttrs
+                        .filter(a => a.required === true)
+                        .map(a => ({
+                            id: a.attribute?.id,
+                            name: a.attribute?.name || '',
+                            allowCustom: a.allowCustom !== false,
+                            values: Array.isArray(a.attributeValues) ? a.attributeValues : [],
+                        }));
+                    console.log(`[upload] Attribute listesi alındı, zorunlu sayısı: ${required.length} (kategori: ${categoryId})`);
+                    categoryAttrCache.set(categoryId, required);
+                    return required;
+                } catch (err) {
+                    console.log(`[upload] getRequiredAttrs hata (kategori: ${categoryId}): ${err.message} — boş array ile devam`);
+                    categoryAttrCache.set(categoryId, []);
+                    return [];
+                }
+            }
+
+            const getAttrMapEntry = db.prepare(`
+                SELECT uam.varsayilan_deger, uam.xml_alan_adi
+                FROM urun_attribute_map uam
+                JOIN trendyol_kategoriler tk ON tk.id = uam.trendyol_kategori_id
+                WHERE tk.trendyol_id = ? AND uam.trendyol_attribute_adi = ?
+                LIMIT 1
+            `);
+
+            const getCategoryTamYol = db.prepare(
+                'SELECT tam_yol FROM trendyol_kategoriler WHERE trendyol_id = ? LIMIT 1'
+            );
+
+            // OpenAI ile eksik attribute'ları doldurur.
+            // missingAttrs: [{ id, name, allowCustom, values: [{id, name}] }]
+            // Döndürür: [{ attributeId, attributeValueId? , customAttributeValue? }]
+            async function fillMissingAttrsWithAI(title, categoryId, missingAttrs) {
+                if (!missingAttrs.length || !process.env.OPENAI_API_KEY) return [];
+
+                const catRow = getCategoryTamYol.get(categoryId);
+                const categoryPath = catRow?.tam_yol || `Kategori ${categoryId}`;
+
+                const attrLines = missingAttrs.map(a => {
+                    const opts = a.values.slice(0, 20).map(v => v.name).join(', ');
+                    return `${a.name}: seçenekler=[${opts || '(boş)'}], allowCustom=${a.allowCustom}`;
+                }).join('\n');
+
+                const prompt = `Ürün adı: ${title}
+Kategori: ${categoryPath}
+
+Her attribute için verilen seçeneklerden en uygununu seç. Emin olamazsan ilk seçeneği al.
+allowCustom true ise listede uygun yoksa kısa uygun değer yaz.
+
+${attrLines}
+
+Sadece JSON döndür:
+{${missingAttrs.map(a => `"${a.name}": "seçilen_deger"`).join(', ')}}`;
+
+                let aiText = '';
+                try {
+                    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+                    const completion = await openai.chat.completions.create({
+                        model: 'gpt-4o-mini',
+                        max_tokens: 512,
+                        messages: [{ role: 'user', content: prompt }],
+                    });
+                    aiText = completion.choices[0].message.content?.trim() || '';
+                    console.log(`[upload] OpenAI yanıtı alındı: ${aiText.slice(0, 120)}`);
+                } catch (err) {
+                    addLog('warn', `fillMissingAttrsWithAI OpenAI hatası [${title}]: ${err.message}`, dealerId);
+                    return [];
+                }
+
+                let parsed = {};
+                try {
+                    const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+                } catch (_) {}
+
+                const result = [];
+                for (const a of missingAttrs) {
+                    const aiValue = parsed[a.name];
+                    if (!aiValue) {
+                        // Parse başarısız → ilk seçeneği kullan
+                        const first = a.values[0];
+                        if (first) result.push({ attributeId: a.id, attributeValueId: first.id });
+                        continue;
+                    }
+                    // Değer listesinde eşleşme ara
+                    const matched = a.values.find(
+                        v => v.name?.toLowerCase() === String(aiValue).toLowerCase()
+                    );
+                    if (matched?.id) {
+                        result.push({ attributeId: a.id, attributeValueId: matched.id });
+                    } else if (a.allowCustom) {
+                        result.push({ attributeId: a.id, customAttributeValue: String(aiValue) });
+                    } else if (a.values[0]) {
+                        // allowCustom=false ve eşleşme yok → ilk seçeneğe düş
+                        result.push({ attributeId: a.id, attributeValueId: a.values[0].id });
+                    }
+                }
+                return result;
+            }
+
+            // Batch gönderme + sonuç bekleme
+            async function sendBatchAndWait(items, batchLabel) {
+                const res = await axios.post(API_URL, { items }, {
+                    headers: {
+                        'Authorization': `Basic ${authString}`,
+                        'Content-Type': 'application/json',
+                        'User-Agent': `${store.supplier_id} - SelfIntegration`,
+                    },
+                });
+                const batchRequestId = res.data?.batchRequestId;
+                if (!batchRequestId) return null;
+                addLog('info', `${batchLabel} kabul edildi, batchRequestId=${batchRequestId}`, dealerId);
+                return await fetchBatchResult(batchRequestId);
+            }
+
             async function fetchBatchResult(batchRequestId) {
                 const batchUrl = `https://apigw.trendyol.com/integration/product/sellers/${store.supplier_id}/products/batch-requests/${batchRequestId}`;
 
@@ -2256,6 +3461,7 @@ app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
 
                 if (!batch.length) continue;
                 totalQueued += batch.length;
+                console.log(`[upload] Batch hazırlanıyor, ürün sayısı: ${batch.length}`);
 
                 const items = await Promise.all(batch.map(async p => {
                     const rawUrls = (p.image_url || '').split(',').map(u => u.trim()).filter(u => isValidImageUrl(u));
@@ -2284,10 +3490,80 @@ app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
                         (p.xml_category_id && p.xml_category_id > 0)
                             ? p.xml_category_id
                             : (savedMapping?.trendyol_category_id || getTrendyolCategoryByName(p.category, p.title) || getCategoryId(`${p.category || ''} ${p.title || ''}`));
-                    // XML'den gelen brand_name ile Trendyol brand ID'yi çöz, bulunamazsa varsayılana düş
-                    const resolvedBrandId = (p.brand_name
-                        ? await resolveBrandId(p.brand_name, authString, store.supplier_id)
-                        : null) || 2613880;
+                    // Kullanıcının seçtiği marka öncelikli; yoksa XML'den gelen brand_name çözülür
+                    const resolvedBrandId = overrideBrandId
+                        || (p.brand_name
+                            ? await resolveBrandId(p.brand_name, authString, store.supplier_id)
+                            : null)
+                        || 2613880;
+
+                    // ── Zorunlu attribute doldurma ──────────────────────────
+                    if (finalCategoryId) {
+                        const requiredAttrs = await getRequiredAttrs(finalCategoryId);
+                        const stillMissing = []; // AI'ya gönderilecek
+
+                        for (const ra of requiredAttrs) {
+                            if (!ra.id) continue;
+                            if (mergedAttributes.some(a => a.attributeId === ra.id)) continue;
+
+                            let resolvedValue = null;
+
+                            // 1. urun_attribute_map'de kayıt var mı?
+                            const mapEntry = getAttrMapEntry.get(finalCategoryId, ra.name);
+                            if (mapEntry?.varsayilan_deger) resolvedValue = mapEntry.varsayilan_deger;
+
+                            // 2. Ürün alanlarından çıkar
+                            if (!resolvedValue) {
+                                const nl = ra.name.toLowerCase();
+                                if (nl.includes('renk') || nl.includes('color')) {
+                                    resolvedValue = p.color || 'Çok Renkli';
+                                } else if (nl.includes('marka') || nl.includes('brand')) {
+                                    resolvedValue = p.brand_name || null;
+                                } else if (nl.includes('tip') || nl.includes('model') || nl.includes('tür') || nl.includes('çeşit') || nl.includes('type')) {
+                                    resolvedValue = (p.title || '').trim().split(/\s+/).slice(0, 3).join(' ') || null;
+                                }
+                            }
+
+                            if (resolvedValue) {
+                                const matched = ra.values.find(v => v.name?.toLowerCase() === String(resolvedValue).toLowerCase());
+                                if (matched?.id) {
+                                    mergedAttributes.push({ attributeId: ra.id, attributeValueId: matched.id });
+                                } else if (ra.allowCustom) {
+                                    mergedAttributes.push({ attributeId: ra.id, customAttributeValue: String(resolvedValue) });
+                                } else {
+                                    stillMissing.push(ra); // değer listesinde eşleşme yok
+                                }
+                            } else {
+                                stillMissing.push(ra);
+                            }
+                        }
+
+                        // 3. Hâlâ eksikler varsa OpenAI ile doldur
+                        if (stillMissing.length > 0) {
+                            console.log(`[upload] fillMissingAttrsWithAI çağrılıyor, eksik: ${stillMissing.map(a => a.name).join(', ')} [${p.barcode}]`);
+                            try {
+                                const aiAttrs = await fillMissingAttrsWithAI(p.title, finalCategoryId, stillMissing);
+                                for (const a of aiAttrs) mergedAttributes.push(a);
+                                if (aiAttrs.length > 0) {
+                                    addLog('info',
+                                        `AI attribute doldurdu [${p.barcode}]: ${aiAttrs.map(a => a.attributeId).join(', ')}`,
+                                        dealerId
+                                    );
+                                }
+                                const stillEmpty = stillMissing.filter(ra => !aiAttrs.some(a => a.attributeId === ra.id));
+                                if (stillEmpty.length > 0) {
+                                    addLog('warn',
+                                        `Attribute doldurulamadı [${p.barcode}]: ${stillEmpty.map(a => a.name).join(', ')} — boş attributes ile gönderilecek`,
+                                        dealerId
+                                    );
+                                }
+                            } catch (err) {
+                                addLog('warn', `fillMissingAttrsWithAI genel hata [${p.barcode}]: ${err.message}`, dealerId);
+                            }
+                        }
+                    }
+                    // ────────────────────────────────────────────────────────
+
                     return {
                         barcode: p.barcode,
                         title: p.title.substring(0, 100),
@@ -2306,64 +3582,76 @@ app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
                         images: imageUrls.map(u => ({ url: u })),
                         attributes: mergedAttributes,
                     };
-                }));
+                })).then(arr => arr.filter(Boolean));
+
+                const batchNo = Math.floor(i / BATCH_SIZE) + 1;
+                console.log(`[upload] Batch Trendyol'a gönderiliyor, item sayısı: ${items.length}`);
+
+                // Barkod → item eşlemesi (PUT retry için)
+                const itemByBarcode = new Map(items.map(it => [it.barcode, it]));
 
                 try {
-                    const uploadRes = await axios.post(API_URL, { items }, {
-                        headers: {
-                            'Authorization': `Basic ${authString}`,
-                            'Content-Type': 'application/json',
-                            'User-Agent': `${store.supplier_id} - SelfIntegration`
-                        }
-                    });
-                    const batchNo = Math.floor(i / BATCH_SIZE) + 1;
-                    const batchRequestId = uploadRes.data?.batchRequestId;
+                    const batchResult = await sendBatchAndWait(items, `Batch ${batchNo}`);
 
-                    if (!batchRequestId) {
-                        totalFailed += batch.length;
-                        for (const product of batch) updateTrendyolStatus.run('batch_id_missing', dealerId, product.barcode);
-                        addLog('error', `Batch ${batchNo}: Trendyol batchRequestId döndürmedi`, dealerId);
-                        continue;
-                    }
-
-                    addLog('info', `Batch ${batchNo}: istek kabul edildi, batchRequestId=${batchRequestId}`, dealerId);
-
-                    const batchResult = await fetchBatchResult(batchRequestId);
                     if (!batchResult) {
                         for (const product of batch) updateTrendyolStatus.run('processing', dealerId, product.barcode);
-                        addLog('info', `Batch ${batchNo}: Trendyol sonucu henüz tamamlanmadı (batchRequestId=${batchRequestId})`, dealerId);
+                        addLog('info', `Batch ${batchNo}: Trendyol sonucu henüz tamamlanmadı`, dealerId);
+                        await sleep(2000);
                         continue;
                     }
 
                     let batchSucceeded = 0;
                     let batchFailed = 0;
+                    const putRetryItems = []; // PUT ile yeniden denenecekler
 
                     for (const resultItem of batchResult.items || []) {
                         const barcode = resultItem?.requestItem?.barcode || resultItem?.requestItem?.product?.barcode;
                         const status = resultItem?.status || 'UNKNOWN';
                         const failureReasons = Array.isArray(resultItem?.failureReasons) ? resultItem.failureReasons : [];
+                        const reasonStr = failureReasons.join(' | ');
 
                         if (!barcode) continue;
 
                         if (status === 'SUCCESS') {
-                            batchSucceeded += 1;
+                            batchSucceeded++;
                             updateTrendyolStatus.run('uploaded', dealerId, barcode);
                         } else {
-                            batchFailed += 1;
-                            updateTrendyolStatus.run('failed', dealerId, barcode);
-                            const shortReason = failureReasons.join(' | ').substring(0, 400) || 'Bilinmeyen hata';
-                            addLog('error', `Batch ${batchNo} ürün hatası [${barcode}]: ${shortReason}`, dealerId);
+                            // "Aynı barkodlu ürün zaten var" → PUT ile güncellemeyi dene
+                            const reasonLower = reasonStr.toLowerCase();
+                            const isDuplicate = reasonLower.includes('recurring.product.create.not.allowed')
+                                || reasonLower.includes('ayn') && reasonLower.includes('barkod')
+                                || reasonLower.includes('already exists')
+                                || reasonLower.includes('duplicate');
+
+                            if (isDuplicate && itemByBarcode.has(barcode)) {
+                                putRetryItems.push(itemByBarcode.get(barcode));
+                                addLog('info', `Batch ${batchNo} [${barcode}]: zaten var, PUT ile güncellenecek`, dealerId);
+                            } else {
+                                batchFailed++;
+                                updateTrendyolStatus.run('failed', dealerId, barcode);
+                                const shortReason = reasonStr.substring(0, 400) || 'Bilinmeyen hata';
+                                addLog('error', `Batch ${batchNo} ürün hatası [${barcode}]: ${shortReason}`, dealerId);
+                            }
                         }
+                    }
+
+                    // Duplicate ürünler zaten Trendyol'da mevcut → uploaded olarak işaretle
+                    if (putRetryItems.length > 0) {
+                        for (const it of putRetryItems) {
+                            batchSucceeded++;
+                            updateTrendyolStatus.run('uploaded', dealerId, it.barcode);
+                        }
+                        addLog('info', `Batch ${batchNo}: ${putRetryItems.length} ürün zaten Trendyol'da mevcut, uploaded olarak işaretlendi`, dealerId);
+                        console.log(`[upload] ${putRetryItems.length} duplicate ürün uploaded olarak işaretlendi`);
                     }
 
                     totalSucceeded += batchSucceeded;
                     totalFailed += batchFailed;
                     addLog(
                         batchFailed > 0 ? 'error' : 'success',
-                        `Batch ${batchNo} doğrulandı: başarılı=${batchSucceeded}, hatalı=${batchFailed}, batchRequestId=${batchRequestId}`,
+                        `Batch ${batchNo} tamamlandı: başarılı=${batchSucceeded}, hatalı=${batchFailed}${putRetryItems.length ? `, PUT ile güncellenen=${putRetryItems.length}` : ''}`,
                         dealerId
                     );
-                    addLog('info', `Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batch.length} ürün gönderildi`, dealerId);
                 } catch (err) {
                     const errorDetail = err.response?.data ? JSON.stringify(err.response.data).substring(0, 500) : err.message;
                     totalFailed += batch.length;
@@ -2464,6 +3752,8 @@ app.get('/admin', (req, res) => {
 startQuestionsCron();
 startOrdersCron(syncDealerOrders);
 startXmlSyncCron(importXmlFeedById);
+startPricingCron(db);
+startAutoAnswerCron();
 
 app.listen(PORT, () => {
     console.log(`✅ Sunucu http://localhost:${PORT} üzerinde çalışıyor.`);
