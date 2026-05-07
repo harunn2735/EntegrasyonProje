@@ -112,6 +112,15 @@
       text-align: center
     }
 
+    .nav-group-label {
+      padding: 14px 20px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--border);
+    }
+
     .sidebar-footer {
       padding: 16px 20px;
       border-top: 1px solid var(--border)
@@ -1002,22 +1011,32 @@
         <span>Trendyol Entegrasyon</span>
       </div>
       <nav class="nav">
-        <div class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard"><span
-            class="icon">📊</span>Dashboard</div>
-        <div class="nav-item" onclick="navigate('xml')" id="nav-xml"><span class="icon">🔗</span>XML Feedler</div>
-        <div class="nav-item" onclick="navigate('products')" id="nav-products"><span class="icon">📦</span>Ürünlerim
-        </div>
-        <div class="nav-item" onclick="navigate('margins')" id="nav-margins"><span class="icon">💹</span>Kâr Marjları
-        </div>
-        <div class="nav-item" onclick="navigate('profitloss')" id="nav-profitloss"><span class="icon">📈</span>Kâr/Zarar
-        </div>
+        <div class="nav-group-label">Genel</div>
+        <div class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard"><span class="icon">📊</span>Dashboard</div>
         <div class="nav-item" onclick="navigate('stores')" id="nav-stores"><span class="icon">🏪</span>Mağazalarım</div>
+        <div class="nav-item" onclick="navigate('settings')" id="nav-settings"><span class="icon">⚙️</span>Trendyol Ayarları</div>
+
+        <div class="nav-group-label">Ürünler & Stok</div>
+        <div class="nav-item" onclick="navigate('products')" id="nav-products"><span class="icon">📦</span>Ürünlerim</div>
+        <div class="nav-item" onclick="navigate('xml')" id="nav-xml"><span class="icon">🔗</span>XML Feedler</div>
+        <div class="nav-item" onclick="navigate('margins')" id="nav-margins"><span class="icon">💹</span>Kâr Marjları</div>
+        <div class="nav-item" onclick="navigate('stock')" id="nav-stock"><span class="icon">🚨</span>Stok Uyarıları</div>
+        <div class="nav-item" onclick="navigate('categories')" id="nav-categories"><span class="icon">📂</span>Kategori Yönetimi</div>
+        <div class="nav-item" onclick="navigate('brands')" id="nav-brands"><span class="icon">🏷️</span>Marka Yönetimi</div>
+
+        <div class="nav-group-label">Analitik</div>
         <div class="nav-item" onclick="navigate('orders')" id="nav-orders"><span class="icon">📋</span>Siparişler</div>
         <div class="nav-item" onclick="navigate('analytics')" id="nav-analytics"><span class="icon">📊</span>Satış Grafikleri</div>
+        <div class="nav-item" onclick="navigate('profitloss')" id="nav-profitloss"><span class="icon">📈</span>Kâr/Zarar</div>
         <div class="nav-item" onclick="navigate('forecast')" id="nav-forecast"><span class="icon">🔮</span>Talep Tahmini</div>
-        <div class="nav-item" onclick="navigate('questions')" id="nav-questions"><span class="icon">💬</span>Sorular</div>
-        <div class="nav-item" onclick="navigate('settings')" id="nav-settings"><span class="icon">⚙️</span>Trendyol
-          Ayarları</div>
+
+        <div class="nav-group-label">Fiyatlandırma</div>
+        <div class="nav-item" onclick="navigate('pricing')" id="nav-pricing"><span class="icon">💰</span>Fiyat Önerileri</div>
+        <div class="nav-item" onclick="navigate('pricing-rules')" id="nav-pricing-rules"><span class="icon">⚙️</span>Fiyat Kuralları</div>
+
+        <div class="nav-group-label">Diğer</div>
+        <div class="nav-item" onclick="navigate('questions')" id="nav-questions"><span class="icon">💬</span>Müşteri Soruları</div>
+        <div class="nav-item" onclick="navigate('health')" id="nav-health"><span class="icon">🏥</span>Ürün Sağlık Merkezi</div>
       </nav>
       <div class="sidebar-footer">
         <div class="dealer-badge">
@@ -1087,6 +1106,32 @@
               </div>
             </div>
           </div>
+
+          <!-- Stok Uyarı widget -->
+          <div id="dash-stock-widget" style="margin-top:18px;display:none">
+            <div class="card" style="border-left:4px solid #ef4444">
+              <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--muted)">📦 STOK DURUMU</div>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+                <div style="font-size:13px">🔴 Kritik: <strong id="dash-stock-critical">-</strong> ürün</div>
+                <div style="font-size:13px">🟡 Uyarı: <strong id="dash-stock-warning">-</strong> ürün</div>
+                <div style="font-size:13px">🟢 Normal: <strong id="dash-stock-ok">-</strong> ürün</div>
+              </div>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:10px" id="dash-stock-sync"></div>
+              <button class="btn btn-ghost btn-sm" onclick="navigate('stock')">Detayları Gör →</button>
+            </div>
+          </div>
+
+          <!-- Fiyat Önerileri widget -->
+          <div id="dash-pricing-widget" style="margin-top:18px;display:none">
+            <div class="card" style="border-left:4px solid var(--accent);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <div style="font-size:28px">💰</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14px;font-weight:700" id="dash-pricing-title">Fiyat önerileri yükleniyor...</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:2px" id="dash-pricing-sub"></div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="navigate('pricing')">Önerileri İncele →</button>
+            </div>
+          </div>
         </div>
 
         <!-- XML FEEDLER -->
@@ -1136,6 +1181,23 @@
 
         <!-- ÜRÜNLER -->
         <div class="page" id="page-products">
+          <!-- Kategori inceleme banner -->
+          <div id="review-banner" style="display:none;background:rgba(234,179,8,0.15);border:1px solid var(--yellow);border-radius:10px;padding:12px 16px;margin-bottom:14px;align-items:center;justify-content:space-between;gap:12px">
+            <span style="color:var(--yellow);font-weight:600;font-size:13px">⚠️ <span id="review-banner-count">0</span> ürün kategori onayı bekliyor</span>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm" id="review-filter-btn" onclick="toggleReviewFilter()" style="background:var(--yellow);color:#000;border:none">Bekleyenleri Göster</button>
+              <button class="btn btn-sm" id="bulk-ai-btn" onclick="bulkAiMatch()" style="background:var(--purple,#7c3aed);color:#fff;border:none">✨ Tümünü AI ile Eşleştir</button>
+              <button class="btn btn-ghost btn-sm" onclick="hideReviewBanner()">✕</button>
+            </div>
+          </div>
+          <!-- AI içerik banner -->
+          <div id="content-banner" style="display:none;background:rgba(99,102,241,0.12);border:1px solid var(--accent,#6366f1);border-radius:10px;padding:12px 16px;margin-bottom:14px;align-items:center;justify-content:space-between;gap:12px">
+            <span style="color:var(--accent,#6366f1);font-weight:600;font-size:13px">✨ <span id="content-banner-count">0</span> ürün için AI içerik üretilebilir</span>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm" id="bulk-content-btn" onclick="bulkGenerateContent()" style="background:var(--accent,#6366f1);color:#fff;border:none">✨ Tümünü Üret (maks 50)</button>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('content-banner').style.display='none'">✕</button>
+            </div>
+          </div>
           <div class="search-bar">
             <input id="prod-search" placeholder="Ürün adı veya barkod ara..." oninput="loadProducts()" />
             <select id="prod-supplier"
@@ -1156,6 +1218,8 @@
                   <th>Satış Fiyatı</th>
                   <th>Marj</th>
                   <th>Stok</th>
+                  <th id="prod-cat-col" style="display:none">Kategori</th>
+                  <th>İçerik</th>
                 </tr>
               </thead>
               <tbody id="prod-tbody"></tbody>
@@ -1304,7 +1368,13 @@
 
         <div class="page" id="page-analytics"></div>
         <div class="page" id="page-forecast"></div>
+        <div class="page" id="page-pricing"></div>
+        <div class="page" id="page-pricing-rules"></div>
+        <div class="page" id="page-health"></div>
+        <div class="page" id="page-stock"></div>
         <div class="page" id="page-questions"></div>
+        <div class="page" id="page-categories"></div>
+        <div class="page" id="page-brands"></div>
 
         <!-- TRENDYOL AYARLARI -->
         <div class="page" id="page-settings">
@@ -1381,6 +1451,79 @@
   </div><!-- /app -->
 
   <!-- MAĞAZA MODAL -->
+  <!-- KATEGORİ ONAY MODALI -->
+  <div class="modal-overlay" id="cat-approve-modal">
+    <div class="modal" style="max-width:520px">
+      <h2>📂 Kategori Onayı</h2>
+      <input type="hidden" id="cam-product-id" />
+      <input type="hidden" id="cam-eslestirme-id" />
+
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Ürün</div>
+        <div id="cam-product-title" style="font-weight:600;font-size:14px"></div>
+        <div id="cam-product-barcode" style="font-size:11px;color:var(--muted);margin-top:2px"></div>
+      </div>
+
+      <div id="cam-ai-suggestion" style="background:rgba(234,179,8,0.1);border:1px solid var(--yellow);border-radius:8px;padding:12px;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--yellow);font-weight:600;margin-bottom:6px">AI ÖNERİSİ</div>
+        <div id="cam-ai-path" style="font-size:13px;font-weight:500;margin-bottom:6px;word-break:break-word"></div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="font-size:11px;color:var(--muted)">Güven Skoru:</div>
+          <div id="cam-confidence-bar" style="flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">
+            <div id="cam-confidence-fill" style="height:100%;border-radius:3px;transition:width .3s"></div>
+          </div>
+          <div id="cam-confidence-val" style="font-size:11px;font-weight:600;min-width:32px;text-align:right"></div>
+        </div>
+      </div>
+
+      <!-- Kategori değiştirme alanı -->
+      <div id="cam-change-section" style="display:none;margin-bottom:16px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Farklı Kategori Ara</div>
+        <input id="cam-search-input" placeholder="Kategori adı yazın..." oninput="camSearchKategoriler(this.value)"
+          style="width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box" />
+        <div id="cam-search-results" style="margin-top:6px;max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;display:none"></div>
+      </div>
+
+      <div id="cam-selected-category" style="display:none;background:rgba(34,197,94,0.1);border:1px solid var(--green);border-radius:8px;padding:10px;margin-bottom:16px;font-size:13px">
+        <div style="font-size:11px;color:var(--green);font-weight:600;margin-bottom:4px">SEÇİLEN KATEGORİ</div>
+        <div id="cam-selected-path"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('cat-approve-modal')">İptal</button>
+        <button class="btn btn-ghost" id="cam-change-btn" onclick="camToggleChange()">✏️ Değiştir</button>
+        <button class="btn btn-primary" id="cam-approve-btn" onclick="camApprove()">✅ Onayla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI İÇERİK MODALI -->
+  <div class="modal-overlay" id="content-modal" style="display:none" onclick="if(event.target===this)closeContentModal()">
+    <div class="modal" style="max-width:540px">
+      <h2>✨ AI İçerik Üretimi</h2>
+
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">AI Başlık <span style="color:var(--muted)">(maks 100 karakter)</span></label>
+        <input id="cm-baslik" type="text" maxlength="100" placeholder="Başlık burada görünecek..."
+          style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box" />
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">AI Açıklama</label>
+        <textarea id="cm-aciklama" rows="5" placeholder="Açıklama burada görünecek..."
+          style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box"></textarea>
+      </div>
+
+      <div id="cm-status" style="font-size:12px;min-height:18px;margin-bottom:8px"></div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeContentModal()">Kapat</button>
+        <button class="btn btn-sm" id="cm-generate-btn" onclick="cmGenerate()" style="background:var(--accent,#6366f1);color:#fff;border:none">✨ Üret / Yeniden Üret</button>
+        <button class="btn btn-primary" id="cm-apply-btn" onclick="cmApply()" disabled>💾 Uygula</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="store-modal">
     <div class="modal">
       <h2>🏪 Mağaza Ekle / Düzenle</h2>
@@ -1398,6 +1541,39 @@
     </div>
   </div>
 
+  <!-- MARKA SEÇİM MODALI -->
+  <div class="modal-overlay" id="brand-modal">
+    <div class="modal" style="max-width:460px">
+      <h2>🏷️ Marka Bilgisi</h2>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Tüm ürünlere uygulanacak marka bilgisini girin veya kayıtlı markalardan seçin.</p>
+
+      <div class="form-group" id="brand-saved-group">
+        <label>Kayıtlı Markalar</label>
+        <select id="brand-saved-select" onchange="onSavedBrandSelect()">
+          <option value="">— Manuel gir —</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Marka Adı</label>
+        <input id="brand-name-input" placeholder="örn. Samsung" oninput="onBrandInputChange()" autocomplete="off" />
+      </div>
+
+      <div class="form-group">
+        <label>Trendyol Marka ID</label>
+        <input id="brand-id-input" placeholder="örn. 123456" type="number" min="1" oninput="onBrandInputChange()" />
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5">
+          Marka ID'sini <strong>Trendyol Seller Panel → Ürün Yönetimi → Marka Listesi</strong>'nden bulabilirsiniz.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="cancelBrandModal()">İptal</button>
+        <button class="btn btn-primary" id="brand-confirm-btn" onclick="confirmBrandAndUpload()" disabled>Onayla ve Yükle</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast"></div>
 
   <script>
@@ -1408,6 +1584,9 @@
     let DEALER = JSON.parse(localStorage.getItem('dealer_info') || 'null');
     let prodPage = 1;
     let pendingStocks = {};
+    let prodReviewMode = false; // sadece inceleme bekleyenleri göster
+    // Kategori onay modalı için geçici seçili kategori
+    let camSelectedCategory = null; // { trendyol_id, tam_yol }
     let orderSearchTimer = null;
     let orderFilters = { search: '', status: '', dateFrom: '', dateTo: '', type: '', sort: 'order_date', dir: 'desc' };
 
@@ -1492,7 +1671,7 @@
       document.getElementById('topbar-actions').innerHTML = '';
       document.getElementById('page-' + page)?.classList.add('active');
       document.getElementById('nav-' + page)?.classList.add('active');
-      const titles = { dashboard: 'Dashboard', xml: 'XML Feedler', products: 'Ürünlerim', margins: 'Kâr Marjları', profitloss: 'Kâr / Zarar Analizi', stores: 'Mağazalarım', orders: 'Siparişler', analytics: 'Satış Grafikleri', forecast: 'Talep Tahmini', questions: 'Müşteri Soruları', settings: 'Trendyol Ayarları' };
+      const titles = { dashboard: 'Dashboard', xml: 'XML Feedler', products: 'Ürünlerim', margins: 'Kâr Marjları', profitloss: 'Kâr / Zarar Analizi', stores: 'Mağazalarım', orders: 'Siparişler', analytics: 'Satış Grafikleri', forecast: 'Talep Tahmini', pricing: 'Fiyat Önerileri', 'pricing-rules': 'Fiyat Kuralları', questions: 'Müşteri Soruları', health: 'Ürün Sağlık Merkezi', stock: 'Stok Uyarıları', settings: 'Trendyol Ayarları', categories: 'Kategori Yönetimi', brands: 'Marka Yönetimi' };
       document.getElementById('page-title').textContent = titles[page] || page;
       if (page === 'dashboard') loadDashboard();
       if (page === 'xml') loadXmlFeeds();
@@ -1503,8 +1682,14 @@
       if (page === 'orders') loadOrders();
       if (page === 'analytics') loadAnalytics();
       if (page === 'forecast') loadForecast();
+      if (page === 'pricing') loadPricingPage();
+      if (page === 'pricing-rules') loadPricingRulesPage();
       if (page === 'questions') loadQuestions();
+      if (page === 'health') loadHealthPage();
+      if (page === 'stock') loadStockAlertsPage();
       if (page === 'settings') loadSettings();
+      if (page === 'categories') loadKategorilerPage();
+      if (page === 'brands') loadBrandsPage();
     }
 
     // ─── SETTINGS ───
@@ -1613,6 +1798,46 @@
         document.getElementById('kpi-products').textContent = d.productCount.toLocaleString('tr');
         document.getElementById('kpi-xmls').textContent = d.xmlCount.toLocaleString('tr');
       } catch (e) { toast(e.message, 'error'); }
+
+      // Stok uyarı widget
+      try {
+        const sw = await api('/api/stock/alerts?summary=true');
+        if (sw && sw.summary) {
+          const s       = sw.summary;
+          const widget  = document.getElementById('dash-stock-widget');
+          const syncEl  = document.getElementById('dash-stock-sync');
+          if (widget) {
+            document.getElementById('dash-stock-critical').textContent = s.criticalCount;
+            document.getElementById('dash-stock-warning').textContent  = s.warningCount;
+            document.getElementById('dash-stock-ok').textContent       = s.okCount;
+            if (syncEl && s.lastSyncAt) {
+              const diffMin = Math.round((Date.now() - new Date(s.lastSyncAt).getTime()) / 60000);
+              const ago = diffMin < 60 ? `${diffMin} dakika önce` : `${Math.round(diffMin/60)} saat önce`;
+              syncEl.textContent = `Son sync: ${ago}`;
+            }
+            widget.style.display = (s.criticalCount > 0 || s.warningCount > 0) ? 'block' : 'none';
+          }
+        }
+      } catch (e) { /* widget yüklenemezse sessizce geç */ }
+
+      // Fiyat önerileri widget
+      try {
+        const pr = await api('/api/pricing/recommendations?status=pending&limit=1');
+        if (!pr) return;
+        const widget = document.getElementById('dash-pricing-widget');
+        const title  = document.getElementById('dash-pricing-title');
+        const sub    = document.getElementById('dash-pricing-sub');
+        if (!widget) return;
+        if (pr.pending > 0) {
+          widget.style.display = 'block';
+          title.textContent = `${pr.pending} fiyat önerisi onay bekliyor`;
+          const impact = pr.estimatedMonthlyImpact || 0;
+          const sign   = impact >= 0 ? '+' : '';
+          sub.textContent = `Tahmini aylık gelir etkisi: ${sign}₺${Math.abs(impact).toLocaleString('tr', {maximumFractionDigits:0})}`;
+        } else {
+          widget.style.display = 'none';
+        }
+      } catch (e) { /* widget yüklenemezse sessizce geç */ }
     }
 
     // ─── XML FEEDS ───
@@ -1716,27 +1941,332 @@
       const search = document.getElementById('prod-search').value;
       const supplier = document.getElementById('prod-supplier').value;
       try {
+        // Review modunda sadece inceleme bekleyenleri yükle
+        if (prodReviewMode) {
+          await loadReviewProducts();
+          return;
+        }
         const d = await api(`/api/dealer/products?page=${prodPage}&limit=50&search=${encodeURIComponent(search)}&supplier=${encodeURIComponent(supplier)}`);
         if (!d) return;
         const tbody = document.getElementById('prod-tbody');
+        const catCol = document.getElementById('prod-cat-col');
+        catCol.style.display = 'none';
         if (!d.products.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">Ürün bulunamadı</td></tr>'; return; }
         tbody.innerHTML = d.products.map(p => {
           const margin = p.cost_price > 0 ? ((p.sale_price - p.cost_price) / p.cost_price * 100).toFixed(1) : 0;
-          const stockCls = p.stock === 0 ? 'badge-red' : p.stock < 5 ? 'badge-yellow' : 'badge-green';
-          return `<tr>
-        <td><div style="font-weight:500;font-size:13px">${esc(p.title?.substring(0, 60))}${p.title?.length > 60 ? '...' : ''}</div></td>
+          const reviewBtn = p.needs_category_review ? `<button class="btn btn-sm" style="background:var(--yellow);color:#000;border:none;font-size:11px;padding:3px 8px" onclick="openCatApproveModal(${p.id})">Kategori Onayla</button>` : '';
+          const contentLabel = p.icerik_uretildi ? `<span style="color:var(--accent,#6366f1);font-size:11px">✓ Üretildi</span>` : '';
+          const contentBtn = `<button class="btn btn-sm" style="background:var(--accent,#6366f1);color:#fff;border:none;font-size:11px;padding:3px 8px" onclick="openContentModal(${p.id})">${p.icerik_uretildi ? 'Görüntüle' : '✨ Üret'}</button>`;
+          return `<tr${p.needs_category_review ? ' style="background:rgba(234,179,8,0.07)"' : ''}>
+        <td><div style="font-weight:500;font-size:13px">${esc(p.title?.substring(0, 60))}${p.title?.length > 60 ? '...' : ''}${reviewBtn ? '<br>' + reviewBtn : ''}</div></td>
         <td><code style="font-size:11px;color:var(--muted)">${esc(p.barcode)}</code></td>
         <td><span class="badge badge-blue">${esc(p.supplier_name)}</span></td>
         <td>₺${p.cost_price?.toFixed(2)}</td>
         <td style="font-weight:600;color:var(--green)">₺${p.sale_price?.toFixed(2)}</td>
         <td><span class="badge ${margin > 0 ? 'badge-green' : 'badge-red'}">%${margin}</span></td>
         <td><input class="stock-input" type="number" value="${p.stock}" min="0" data-barcode="${esc(p.barcode)}" onchange="pendingStocks['${esc(p.barcode)}'] = parseInt(this.value)"/></td>
+        <td style="text-align:center">${contentLabel ? contentLabel + '<br>' : ''}${contentBtn}</td>
       </tr>`;
         }).join('');
         document.getElementById('prod-info').textContent = `Toplam ${d.total} ürün | Sayfa ${d.page}/${d.totalPages}`;
         document.getElementById('prod-prev').disabled = d.page <= 1;
         document.getElementById('prod-next').disabled = d.page >= d.totalPages;
+        // Banner güncelle
+        loadReviewBanner();
+        loadContentBanner();
       } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function loadReviewBanner() {
+      try {
+        const d = await api('/api/dealer/products/needs-review');
+        if (!d) return;
+        const banner = document.getElementById('review-banner');
+        if (d.count > 0) {
+          document.getElementById('review-banner-count').textContent = d.count;
+          banner.style.display = 'flex'; banner.style.flexDirection = 'row';
+        } else {
+          banner.style.display = 'none';
+          if (prodReviewMode) { prodReviewMode = false; loadProducts(); }
+        }
+      } catch (_) {}
+    }
+
+    async function loadReviewProducts() {
+      try {
+        const d = await api('/api/dealer/products/needs-review');
+        if (!d) return;
+        const tbody = document.getElementById('prod-tbody');
+        const catCol = document.getElementById('prod-cat-col');
+        catCol.style.display = '';
+        document.getElementById('prod-prev').disabled = true;
+        document.getElementById('prod-next').disabled = true;
+        document.getElementById('prod-info').textContent = `${d.count} ürün kategori onayı bekliyor`;
+        if (!d.products.length) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px">Onay bekleyen ürün yok</td></tr>';
+          return;
+        }
+        tbody.innerHTML = d.products.map(p => {
+          const konfidans = p.guven_skoru != null ? Math.round(p.guven_skoru * 100) : null;
+          const konfidansHtml = konfidans != null
+            ? `<span style="font-size:10px;color:${konfidans >= 75 ? 'var(--green)' : 'var(--yellow)'}">%${konfidans} güven</span>`
+            : '<span style="font-size:10px;color:var(--muted)">AI önerisi yok</span>';
+          return `<tr style="background:rgba(234,179,8,0.07)">
+        <td><div style="font-weight:500;font-size:13px">${esc(p.title?.substring(0, 60))}${p.title?.length > 60 ? '...' : ''}</div></td>
+        <td><code style="font-size:11px;color:var(--muted)">${esc(p.barcode)}</code></td>
+        <td><span class="badge badge-blue">${esc(p.supplier_name)}</span></td>
+        <td colspan="3">
+          <div style="font-size:12px;color:var(--muted)">${esc(p.tam_yol || '—')}</div>
+          <div style="margin-top:2px">${konfidansHtml}</div>
+        </td>
+        <td><input class="stock-input" type="number" value="0" min="0" data-barcode="${esc(p.barcode)}" disabled style="opacity:.4"/></td>
+        <td><button class="btn btn-sm" style="background:var(--yellow);color:#000;border:none;font-size:12px" onclick="openCatApproveModal(${p.id}, ${JSON.stringify(p).replace(/"/g, '&quot;')})">Kategori Onayla</button></td>
+      </tr>`;
+        }).join('');
+      } catch (e) { toast(e.message, 'error'); }
+    }
+
+    function toggleReviewFilter() {
+      prodReviewMode = !prodReviewMode;
+      const btn = document.getElementById('review-filter-btn');
+      btn.textContent = prodReviewMode ? 'Tümünü Göster' : 'Bekleyenleri Göster';
+      loadProducts();
+    }
+
+    function hideReviewBanner() {
+      document.getElementById('review-banner').style.display = 'none';
+    }
+
+    async function bulkAiMatch() {
+      const btn = document.getElementById('bulk-ai-btn');
+      const count = parseInt(document.getElementById('review-banner-count').textContent) || 0;
+      btn.disabled = true;
+      btn.textContent = `İşleniyor... ${count} ürün`;
+      try {
+        const d = await api('/api/dealer/products/bulk-ai-match', { method: 'POST', body: '{}' });
+        if (!d) return;
+        const catInfo = d.categories != null ? ` (${d.categories} kategori sorgulandı)` : '';
+        toast(
+          d.matched > 0
+            ? `${d.matched} ürün eşleştirildi${catInfo}${d.remaining > 0 ? `, ${d.remaining} ürün kaldı` : ', tümü tamamlandı'}`
+            : `Eşleştirilebilen ürün bulunamadı${catInfo} (${d.remaining} ürün kaldı)`,
+          d.matched > 0 ? 'success' : 'info'
+        );
+        loadProducts(); // banner'ı da yeniler
+      } catch (e) {
+        toast(e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ Tümünü AI ile Eşleştir';
+      }
+    }
+
+    // ─── AI İÇERİK ÜRETİMİ ───
+    async function loadContentBanner() {
+      try {
+        const d = await api('/api/dealer/products/needs-content');
+        if (!d) return;
+        const banner = document.getElementById('content-banner');
+        if (d.count > 0) {
+          document.getElementById('content-banner-count').textContent = d.count;
+          banner.style.display = 'flex'; banner.style.flexDirection = 'row';
+        } else {
+          banner.style.display = 'none';
+        }
+      } catch (_) {}
+    }
+
+    async function bulkGenerateContent() {
+      const btn = document.getElementById('bulk-content-btn');
+      btn.disabled = true;
+      btn.textContent = 'Üretiliyor...';
+      try {
+        const d = await api('/api/dealer/products/bulk-generate-content', { method: 'POST', body: '{}' });
+        if (!d) return;
+        toast(
+          d.generated > 0
+            ? `${d.generated} ürün için içerik üretildi${d.remaining > 0 ? `, ${d.remaining} ürün kaldı` : ', tümü tamamlandı'}`
+            : 'İçerik üretilecek ürün bulunamadı',
+          d.generated > 0 ? 'success' : 'info'
+        );
+        loadProducts();
+      } catch (e) {
+        toast(e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ Tümünü Üret (maks 50)';
+      }
+    }
+
+    let contentModalProductId = null;
+
+    async function openContentModal(productId) {
+      contentModalProductId = productId;
+      const modal = document.getElementById('content-modal');
+      document.getElementById('cm-baslik').value = '';
+      document.getElementById('cm-aciklama').value = '';
+      document.getElementById('cm-status').textContent = '';
+      document.getElementById('cm-generate-btn').disabled = false;
+      document.getElementById('cm-generate-btn').textContent = '✨ Üret / Yeniden Üret';
+      document.getElementById('cm-apply-btn').disabled = true;
+      modal.style.display = 'flex';
+      // Mevcut AI içerik varsa yükle
+      try {
+        const row = await api(`/api/dealer/products/${productId}/ai-content`);
+        if (row?.ai_baslik) {
+          document.getElementById('cm-baslik').value = row.ai_baslik;
+          document.getElementById('cm-aciklama').value = row.ai_aciklama || '';
+          document.getElementById('cm-apply-btn').disabled = false;
+        }
+      } catch (_) {}
+    }
+
+    function closeContentModal() {
+      document.getElementById('content-modal').style.display = 'none';
+      contentModalProductId = null;
+    }
+
+    async function cmGenerate() {
+      if (!contentModalProductId) return;
+      const btn = document.getElementById('cm-generate-btn');
+      btn.disabled = true;
+      btn.textContent = 'Üretiliyor...';
+      document.getElementById('cm-status').textContent = '';
+      try {
+        const d = await api(`/api/dealer/products/${contentModalProductId}/generate-content`, { method: 'POST', body: '{}' });
+        if (!d) return;
+        document.getElementById('cm-baslik').value = d.baslik || '';
+        document.getElementById('cm-aciklama').value = d.aciklama || '';
+        document.getElementById('cm-apply-btn').disabled = false;
+        document.getElementById('cm-status').textContent = '✓ İçerik üretildi';
+        document.getElementById('cm-status').style.color = 'var(--green)';
+      } catch (e) {
+        document.getElementById('cm-status').textContent = 'Hata: ' + e.message;
+        document.getElementById('cm-status').style.color = 'var(--red)';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔄 Yeniden Üret';
+      }
+    }
+
+    async function cmApply() {
+      if (!contentModalProductId) return;
+      const baslik = document.getElementById('cm-baslik').value.trim();
+      const aciklama = document.getElementById('cm-aciklama').value.trim();
+      try {
+        await api(`/api/dealer/products/${contentModalProductId}/ai-content`, {
+          method: 'PATCH',
+          body: JSON.stringify({ ai_baslik: baslik, ai_aciklama: aciklama })
+        });
+        toast('İçerik kaydedildi', 'success');
+        closeContentModal();
+        loadProducts();
+      } catch (e) {
+        toast(e.message, 'error');
+      }
+    }
+
+    // ─── KATEGORİ ONAY MODALI ───
+    function openCatApproveModal(productId, productData) {
+      camSelectedCategory = null;
+      document.getElementById('cam-product-id').value = productId;
+      document.getElementById('cam-eslestirme-id').value = productData?.eslestirme_id || '';
+      document.getElementById('cam-product-title').textContent = productData?.title || '—';
+      document.getElementById('cam-product-barcode').textContent = productData?.barcode || '';
+
+      // Eğer productData yoksa (normal listeden açıldıysa) API'den çek
+      if (!productData) {
+        api('/api/dealer/products/needs-review').then(d => {
+          const p = d?.products?.find(x => x.id === productId);
+          if (p) openCatApproveModal(productId, p);
+        });
+        return;
+      }
+
+      // AI önerisi göster
+      const aiSection = document.getElementById('cam-ai-suggestion');
+      if (productData.tam_yol) {
+        aiSection.style.display = '';
+        document.getElementById('cam-ai-path').textContent = productData.tam_yol;
+        const pct = Math.round((productData.guven_skoru || 0) * 100);
+        const fill = document.getElementById('cam-confidence-fill');
+        fill.style.width = pct + '%';
+        fill.style.background = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--yellow)' : 'var(--red)';
+        document.getElementById('cam-confidence-val').textContent = '%' + pct;
+        // Onay butonu için AI önerisini varsayılan seç
+        camSelectedCategory = { trendyol_id: productData.trendyol_category_id, tam_yol: productData.tam_yol };
+      } else {
+        aiSection.style.display = 'none';
+      }
+
+      document.getElementById('cam-change-section').style.display = 'none';
+      document.getElementById('cam-selected-category').style.display = 'none';
+      document.getElementById('cam-search-input').value = '';
+      document.getElementById('cam-search-results').style.display = 'none';
+      document.getElementById('cam-search-results').innerHTML = '';
+      document.getElementById('cat-approve-modal').classList.add('show');
+    }
+
+    function camToggleChange() {
+      const sec = document.getElementById('cam-change-section');
+      const isOpen = sec.style.display !== 'none';
+      sec.style.display = isOpen ? 'none' : '';
+      if (!isOpen) document.getElementById('cam-search-input').focus();
+    }
+
+    let camSearchTimer = null;
+    async function camSearchKategoriler(query) {
+      clearTimeout(camSearchTimer);
+      const resultsEl = document.getElementById('cam-search-results');
+      if (!query || query.length < 2) { resultsEl.style.display = 'none'; return; }
+      camSearchTimer = setTimeout(async () => {
+        try {
+          const results = await api(`/api/dealer/categories/search?q=${encodeURIComponent(query)}`);
+          if (!results || !results.length) {
+            resultsEl.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:12px">Sonuç bulunamadı</div>';
+            resultsEl.style.display = '';
+            return;
+          }
+          resultsEl.innerHTML = results.slice(0, 30).map(k => `
+            <div onclick="camSelectCategory(${k.trendyol_id}, ${JSON.stringify(k.tam_yol).replace(/"/g, '&quot;')})"
+              style="padding:8px 12px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border)"
+              onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+              ${esc(k.tam_yol)}
+            </div>
+          `).join('');
+          resultsEl.style.display = '';
+        } catch (_) {}
+      }, 300);
+    }
+
+    function camSelectCategory(trendyolId, tamYol) {
+      camSelectedCategory = { trendyol_id: trendyolId, tam_yol: tamYol };
+      document.getElementById('cam-selected-path').textContent = tamYol;
+      document.getElementById('cam-selected-category').style.display = '';
+      document.getElementById('cam-search-results').style.display = 'none';
+      document.getElementById('cam-change-section').style.display = 'none';
+    }
+
+    async function camApprove() {
+      if (!camSelectedCategory) return toast('Lütfen önce bir kategori seçin', 'error');
+      const productId = document.getElementById('cam-product-id').value;
+      const eslestirmeId = document.getElementById('cam-eslestirme-id').value || null;
+      const btn = document.getElementById('cam-approve-btn');
+      btn.disabled = true; btn.textContent = 'Kaydediliyor...';
+      try {
+        await api(`/api/dealer/products/${productId}/approve-category`, {
+          method: 'POST',
+          body: JSON.stringify({ trendyol_category_id: camSelectedCategory.trendyol_id, eslestirme_id: eslestirmeId ? parseInt(eslestirmeId) : null })
+        });
+        closeModal('cat-approve-modal');
+        toast('Kategori onaylandı', 'success');
+        loadProducts();
+        if (typeof window._postCatApprove === 'function') { window._postCatApprove(); window._postCatApprove = null; }
+      } catch (e) {
+        toast(e.message, 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = '✅ Onayla';
+      }
     }
 
     async function savePendingStocks() {
@@ -1797,7 +2327,7 @@
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Supplier ID: <strong>${esc(s.supplier_id) || 'Belirtilmemiş'}</strong></div>
         <div style="display:flex;gap:8px;margin-top:14px">
           <button class="btn btn-ghost btn-sm" onclick="openStoreModal(${JSON.stringify(s).replace(/"/g, '&quot;')})">✏️ Düzenle</button>
-          <button class="btn btn-success btn-sm" onclick="uploadToStore(${s.id})">⬆️ Trendyol'a Yükle</button>
+          <button class="btn btn-success btn-sm" onclick="uploadToStore(${s.id}, this)">⬆️ Trendyol'a Yükle</button>
           <button class="btn btn-danger btn-sm" onclick="deleteStore(${s.id})">🗑️</button>
         </div>
       </div>
@@ -1835,11 +2365,147 @@
       toast('Mağaza silindi', 'info'); loadStores();
     }
 
-    async function uploadToStore(storeId) {
+    // ─── MARKA YÖNETİMİ ───
+    let _brandUploadContext = { storeId: null, btn: null };
+
+    function onBrandInputChange() {
+      const name = document.getElementById('brand-name-input').value.trim();
+      const id   = document.getElementById('brand-id-input').value.trim();
+      document.getElementById('brand-confirm-btn').disabled = !(name && id && parseInt(id) > 0);
+      // Dropdown'u sıfırla — kullanıcı manuel giriyor
+      if (name || id) document.getElementById('brand-saved-select').value = '';
+    }
+
+    function onSavedBrandSelect() {
+      const sel = document.getElementById('brand-saved-select');
+      const opt = sel.options[sel.selectedIndex];
+      if (!opt || !opt.value) {
+        document.getElementById('brand-name-input').value = '';
+        document.getElementById('brand-id-input').value = '';
+        document.getElementById('brand-confirm-btn').disabled = true;
+        return;
+      }
+      document.getElementById('brand-name-input').value = opt.text;
+      document.getElementById('brand-id-input').value = opt.value;
+      document.getElementById('brand-confirm-btn').disabled = false;
+    }
+
+    async function openBrandModal(storeId, btn) {
+      _brandUploadContext = { storeId, btn };
+      document.getElementById('brand-name-input').value = '';
+      document.getElementById('brand-id-input').value = '';
+      document.getElementById('brand-confirm-btn').disabled = true;
+
+      // Kayıtlı markaları yükle
+      const sel = document.getElementById('brand-saved-select');
+      sel.innerHTML = '<option value="">— Manuel gir —</option>';
       try {
-        await api('/api/dealer/trendyol-upload', { method: 'POST', body: JSON.stringify({ store_id: storeId }) });
-        toast('Ürün yükleme başlatıldı! Arka planda devam ediyor.', 'success');
-      } catch (e) { toast(e.message, 'error'); }
+        const saved = await api('/api/dealer/brands');
+        if (saved && saved.length) {
+          saved.forEach(b => {
+            const o = document.createElement('option');
+            o.value = b.id; o.textContent = b.name;
+            sel.appendChild(o);
+          });
+          document.getElementById('brand-saved-group').style.display = '';
+        } else {
+          document.getElementById('brand-saved-group').style.display = 'none';
+        }
+      } catch (_) {
+        document.getElementById('brand-saved-group').style.display = 'none';
+      }
+
+      document.getElementById('brand-modal').classList.add('show');
+    }
+
+    function cancelBrandModal() {
+      closeModal('brand-modal');
+      const ctx = _brandUploadContext;
+      if (ctx.btn) { ctx.btn.textContent = '⬆️ Trendyol\'a Yükle'; ctx.btn.disabled = false; }
+      _brandUploadContext = { storeId: null, btn: null };
+    }
+
+    async function confirmBrandAndUpload() {
+      const name    = document.getElementById('brand-name-input').value.trim();
+      const brandId = parseInt(document.getElementById('brand-id-input').value.trim());
+      if (!name || !brandId) return;
+
+      closeModal('brand-modal');
+      const { storeId, btn } = _brandUploadContext;
+      _brandUploadContext = { storeId: null, btn: null };
+
+      // Markayı yerel tabloya kaydet (arka planda)
+      api('/api/dealer/brands', { method: 'POST', body: JSON.stringify({ trendyol_brand_id: brandId, name }) }).catch(() => {});
+
+      await _doUpload(storeId, btn, brandId);
+    }
+
+    async function uploadToStore(storeId, btn) {
+      await openBrandModal(storeId, btn);
+    }
+
+    async function _doUpload(storeId, btn, brandId) {
+      const originalLabel = '⬆️ Trendyol\'a Yükle';
+
+      // 1. Buton — yükleniyor durumuna geç
+      if (btn) { btn.textContent = '⏳ Yükleniyor...'; btn.disabled = true; }
+
+      try {
+        await api('/api/dealer/trendyol-upload', { method: 'POST', body: JSON.stringify({ store_id: storeId, brand_id: brandId }) });
+      } catch (e) {
+        toast('❌ Yükleme başlatılamadı: ' + e.message, 'error');
+        if (btn) { btn.textContent = originalLabel; btn.disabled = false; }
+        return;
+      }
+
+      // 2. Arka plan işlemi tamamlanana kadar log'u poll et
+      let lastId = 0;
+      let attempts = 0;
+      const maxAttempts = 60; // 3 dk (her 3s bir kontrol)
+
+      const poller = setInterval(async () => {
+        attempts++;
+        try {
+          const logs = await api('/api/dealer/logs');
+          if (!logs) return;
+
+          const newLogs = logs.filter(l => l.id > lastId).reverse();
+          if (newLogs.length) lastId = newLogs[newLogs.length - 1].id;
+
+          // "yükleme tamamlandı" logunu ara
+          const tamamLog = newLogs.find(l => l.message.includes('yükleme tamamlandı'));
+          if (tamamLog) {
+            // "özet" logunu ara — başarılı/hatalı sayıları buradan çıkar
+            const ozetLog = newLogs.find(l => l.message.includes('yükleme özeti')) ||
+                            logs.find(l => l.message.includes('yükleme özeti'));
+
+            let toastMsg = '✅ Yükleme tamamlandı!';
+            if (ozetLog) {
+              const m = ozetLog.message.match(/başarılı=(\d+).*hatalı=(\d+)/);
+              if (m) toastMsg = `✅ ${m[1]} ürün yüklendi, ${m[2]} hatalı`;
+            }
+
+            clearInterval(poller);
+            toast(toastMsg, 'success');
+            if (btn) { btn.textContent = originalLabel; btn.disabled = false; }
+            return;
+          }
+
+          // Hata logunu ara
+          const hataLog = newLogs.find(l => l.level === 'error' && l.message.includes('upload hatası'));
+          if (hataLog) {
+            clearInterval(poller);
+            toast('❌ Yükleme hatası: ' + hataLog.message, 'error');
+            if (btn) { btn.textContent = originalLabel; btn.disabled = false; }
+          }
+        } catch (_) {}
+
+        if (attempts >= maxAttempts) {
+          clearInterval(poller);
+          toast('⚠️ Yükleme devam ediyor, sonuç için logları kontrol edin.', 'info');
+          if (btn) { btn.textContent = originalLabel; btn.disabled = false; }
+        }
+      }, 3000);
     }
 
     // ─── SİPARİŞLER ───
@@ -2120,6 +2786,12 @@
   <script src="/js/forecastPage.js"></script>
   <script src="/js/questionsPage.js"></script>
   <script src="/js/profitLossPage.js"></script>
+  <script src="/js/pricingPage.js"></script>
+  <script src="/js/pricingRulesPage.js"></script>
+  <script src="/js/healthPage.js"></script>
+  <script src="/js/stockAlertsPage.js"></script>
+  <script src="/js/kategorilerPage.js"></script>
+  <script src="/js/markaYonetimiPage.js"></script>
 </body>
 
 </html>

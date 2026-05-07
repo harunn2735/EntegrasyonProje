@@ -1,9 +1,12 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const { runMigrations, runSeed } = require('./scripts/migrate');
 
 const dbPath = path.join(__dirname, 'db.sqlite');
 const db = new Database(dbPath);
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
 
 function initDb() {
   db.exec(`
@@ -207,6 +210,12 @@ function initDb() {
   safeAlter(`ALTER TABLE dealer_products ADD COLUMN last_remote_stock INTEGER`);
   safeAlter(`ALTER TABLE dealer_products ADD COLUMN last_stock_sync_at DATETIME`);
   safeAlter(`ALTER TABLE dealer_products ADD COLUMN last_stock_alert_at DATETIME`);
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN needs_category_review INTEGER DEFAULT 0`);
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN ai_baslik TEXT`);
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN ai_aciklama TEXT`);
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN icerik_uretildi INTEGER DEFAULT 0`);
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN brand_id INTEGER`);
+  safeAlter(`ALTER TABLE dealer_products ADD COLUMN attributes_json TEXT`);
 
   // ── Komisyon ve Kâr Tabloları ──────────────────────────────
   db.prepare(`
@@ -255,6 +264,56 @@ function initDb() {
     )
   `).run();
 
+  // ── Kategori Eşleştirme Tabloları ────────────────────────────
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS trendyol_kategoriler (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      parent_id         INTEGER,
+      kategori_adi      TEXT    NOT NULL,
+      trendyol_id       INTEGER NOT NULL UNIQUE,
+      tam_yol           TEXT,
+      guncelleme_tarihi TEXT    DEFAULT (datetime('now'))
+    )
+  `).run();
+
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS kategori_eslestirme (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      tedarikci_adi         TEXT    NOT NULL,
+      xml_kategori_metni    TEXT    NOT NULL,
+      trendyol_kategori_id  INTEGER,
+      guven_skoru           REAL    DEFAULT 0,
+      kullanici_onayladi    INTEGER DEFAULT 0,
+      kullanim_sayisi       INTEGER DEFAULT 0,
+      olusturma_tarihi      TEXT    DEFAULT (datetime('now')),
+      UNIQUE(tedarikci_adi, xml_kategori_metni),
+      FOREIGN KEY (trendyol_kategori_id) REFERENCES trendyol_kategoriler(id)
+    )
+  `).run();
+
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS brands (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      trendyol_brand_id INTEGER NOT NULL UNIQUE,
+      name              TEXT    NOT NULL,
+      created_at        TEXT    DEFAULT (datetime('now'))
+    )
+  `).run();
+
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS urun_attribute_map (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      trendyol_kategori_id  INTEGER NOT NULL,
+      xml_alan_adi          TEXT    NOT NULL,
+      trendyol_attribute_adi TEXT   NOT NULL,
+      zorunlu_mu            INTEGER DEFAULT 0,
+      varsayilan_deger      TEXT,
+      olusturma_tarihi      TEXT    DEFAULT (datetime('now')),
+      UNIQUE(trendyol_kategori_id, xml_alan_adi),
+      FOREIGN KEY (trendyol_kategori_id) REFERENCES trendyol_kategoriler(id)
+    )
+  `).run();
+
   // Varsayılan admin hesabı oluştur (mevcut bayilere şifre yoksa)
   const dealers = db.prepare('SELECT id, email FROM dealers WHERE password_hash IS NULL').all();
   const defaultPassword = bcrypt.hashSync('demo123', 10);
@@ -271,6 +330,14 @@ function initDb() {
       INSERT INTO dealers (name, email, phone, profit_margin, supplier_id, api_key, api_secret, password_hash)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run('Demo Bayi A.Ş.', 'bayi@demo.com', '05001234567', 25, '', '', '', hash);
+  }
+
+  // ── Dinamik Fiyatlandırma Migration'ları ──────────────────────
+  const { applied } = runMigrations(db, { verbose: false });
+  if (applied.length > 0) {
+    console.log(`  📦 ${applied.length} migration uygulandı: ${applied.join(', ')}`);
+    // Yeni migration varsa seed verisi de ekle (idempotent: INSERT OR IGNORE)
+    runSeed(db, 'default_pricing_rules.sql');
   }
 
   console.log('✅ Veritabanı ve tablolar hazır.');

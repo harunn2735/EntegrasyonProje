@@ -99,6 +99,28 @@
     return `<div class="om-line-img" style="background:hsl(${hue} 65% 88%);color:hsl(${hue} 55% 36%);font-size:12px;font-weight:700">${initials}</div>`;
   }
 
+  // ── KARGO TAKİP URL ──────────────────────────────────────────
+  function buildTrackingUrl(cargoCompany, trackingNumber) {
+    if (!trackingNumber) return null;
+    // Sayıya çevrilmeden string olarak kullan (scientific notation önlemi)
+    const num = String(trackingNumber).trim();
+    if (!num) return null;
+    const company = String(cargoCompany || '').toLowerCase();
+    if (company.includes('sürat') || company.includes('surat')) {
+      return `https://www.suratkargo.com.tr/KargoTakip/?kargotakipno=${encodeURIComponent(num)}`;
+    }
+    if (company.includes('yurtiçi') || company.includes('yurtici')) {
+      return `https://www.yurticikargo.com/tr/online-islemler/gonderi-sorgula?code=${encodeURIComponent(num)}`;
+    }
+    if (company.includes('mng')) {
+      return `https://www.mngkargo.com.tr/gonderi-sorgula?trackingNo=${encodeURIComponent(num)}`;
+    }
+    if (company.includes('aras')) {
+      return `https://kargotakip.araskargo.com.tr/?trackingNumber=${encodeURIComponent(num)}`;
+    }
+    return null;
+  }
+
   // ── MODAL OLUŞTUR ────────────────────────────────────────────
   function createOverlay() {
     const div = document.createElement('div');
@@ -169,8 +191,9 @@
       <div class="om-section-title">Ürünler</div>
       <div class="om-lines">${linesHtml || '<div style="color:#64748b;font-size:13px">Ürün satırı bulunamadı.</div>'}</div>`;
 
-    const trackBtn = order.tracking_url
-      ? `<a href="${esc(order.tracking_url)}" target="_blank" rel="noopener" class="om-btn">📦 Kargo Takip</a>`
+    const trackingUrl = buildTrackingUrl(order.cargo_company, order.tracking_number);
+    const trackBtn = trackingUrl
+      ? `<a href="${esc(trackingUrl)}" target="_blank" rel="noopener" class="om-btn">📦 Kargo Takip</a>`
       : `<button class="om-btn" disabled>📦 Kargo Takip</button>`;
 
     document.getElementById('om-footer').innerHTML = `

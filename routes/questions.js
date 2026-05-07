@@ -150,7 +150,17 @@ router.post('/:id/approve', async (req, res) => {
 
     res.json({ ok: true });
   } catch (e) {
-    const detail = e.response?.data?.message || e.message;
+    const data = e.response?.data;
+    const errorKey = data?.errors?.[0]?.key || '';
+
+    if (errorKey === 'business.rule.question.has.already.answered') {
+      db.prepare(
+        "UPDATE questions SET status = 'sent', sent_at = datetime('now') WHERE id = ?"
+      ).run(question.id);
+      return res.json({ ok: true, alreadyAnswered: true });
+    }
+
+    const detail = data?.errors?.[0]?.message || data?.message || e.message;
     res.status(502).json({ error: "Trendyol'a gönderilemedi", detail });
   }
 });

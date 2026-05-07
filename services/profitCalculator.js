@@ -35,22 +35,28 @@ function getCommissionRate(category_id, db) {
 function calculateLineProfit(line, index, { product, commissionRate, config }) {
   // discountedPrice varsa onu, yoksa price'ı kullan
   const sale_price = round2(line.discountedPrice ?? line.price ?? 0);
-  const cost_price = round2(product?.cost_price ?? 0);
-  const actual_commission = round2(line.commission ?? 0);
+  // Ürün bulunamazsa veya cost_price girilmemişse satış fiyatının %60'ını maliyet say
+  const defaultCostRatio = Number(config.DEFAULT_COST_RATIO ?? 0.60);
+  const cost_price = round2(
+    (product?.cost_price > 0) ? product.cost_price : sale_price * defaultCostRatio
+  );
+  const actual_commission_raw = round2(line.commission ?? 0);
 
   const rate = commissionRate?.rate ?? config.DEFAULT_COMMISSION_RATE;
   const kdv_rate = commissionRate?.kdv_rate ?? 20;
 
   const expected_commission = round2(sale_price * rate / 100);
-  // Trendyol komisyonu KDV dahil gelir; KDV payı içinden ayrıştırılır
-  const kdv_amount = round2(actual_commission - actual_commission / (1 + kdv_rate / 100));
+  // Trendyol sipariş satırlarında komisyon bilgisi dönmezse kategori oranından hesapla
+  const commission_for_calc = actual_commission_raw > 0 ? actual_commission_raw : expected_commission;
+  // KDV komisyon üzerine ayrıca eklenir (komisyon oranı KDV hariçtir)
+  const kdv_amount = round2(commission_for_calc * kdv_rate / 100);
   // Kargo maliyeti sipariş bazlı sabit bir gider;
   // birden fazla line'a bölünmez, yalnızca ilk line'a yüklenir.
   const shipping_cost = index === 0 ? Number(config.DEFAULT_SHIPPING_COST) : 0;
   const return_provision = round2(sale_price * Number(config.DEFAULT_RETURN_PROVISION_RATE));
 
   const net_profit = round2(
-    sale_price - cost_price - actual_commission - kdv_amount - shipping_cost - return_provision
+    sale_price - cost_price - commission_for_calc - kdv_amount - shipping_cost - return_provision
   );
   const profit_margin = sale_price > 0 ? round2((net_profit / sale_price) * 100) : 0;
 
@@ -58,7 +64,7 @@ function calculateLineProfit(line, index, { product, commissionRate, config }) {
     barcode: line.barcode,
     sale_price,
     cost_price,
-    actual_commission,
+    actual_commission: commission_for_calc,
     expected_commission,
     kdv_amount,
     shipping_cost,

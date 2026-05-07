@@ -11,6 +11,7 @@ const config = {
   DEFAULT_SHIPPING_COST: Number(process.env.DEFAULT_SHIPPING_COST ?? 15),
   DEFAULT_RETURN_PROVISION_RATE: Number(process.env.DEFAULT_RETURN_PROVISION_RATE ?? 0.02),
   DEFAULT_COMMISSION_RATE: Number(process.env.DEFAULT_COMMISSION_RATE ?? 12),
+  DEFAULT_COST_RATIO: Number(process.env.DEFAULT_COST_RATIO ?? 0.60),
 };
 
 // ── Yardımcı: dönem filtresi ────────────────────────────────

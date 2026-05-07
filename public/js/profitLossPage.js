@@ -556,8 +556,9 @@
                       ${fmtPct(p.avgMargin)}
                     </span>
                   </td>
-                  <td>
-                    ${p.productId ? `<button class="pl-sim-btn" onclick="window._plSimulateProduct(${Number(p.productId)}, '${esc(p.title || p.barcode)}')">Simüle Et</button>` : ''}
+                  <td style="white-space:nowrap;display:flex;gap:6px;align-items:center">
+                    <button class="pl-sim-btn" onclick="window._plSimulateProduct(${p.productId ? Number(p.productId) : 'null'})">Simüle Et</button>
+                    ${p.productId ? `<button class="pl-sim-btn" style="background:rgba(108,99,255,.1);color:var(--accent);border-color:var(--accent)" onclick="window._plPricingSimulate(${Number(p.productId)})">💰 Sistem Önerisi</button>` : ''}
                   </td>
                 </tr>
               `).join('')}
@@ -726,7 +727,7 @@
     if (content) loadAlertsTab(content);
   };
 
-  window._plSimulateProduct = function (productId, name) {
+  window._plSimulateProduct = function (productId) {
     window._plSetTab('simulate');
     setTimeout(() => {
       const input = document.getElementById('pl-sim-product-id');
@@ -735,6 +736,92 @@
         input.focus();
       }
     }, 50);
+  };
+
+  // ── Dinamik Fiyatlandırma Sistem Önerisi Modal ───────────────────────────────
+  // POST /api/pricing/simulate/:id çağırır, sonucu modal olarak gösterir.
+  window._plPricingSimulate = async function (productId) {
+    // Modal varsa kaldır, yeniden oluştur (temiz başlangıç)
+    const existing = document.getElementById('pl-pricing-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'pl-pricing-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:300;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
+    overlay.innerHTML = `
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:28px;width:460px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <h2 style="font-size:17px;font-weight:700">💰 Sistem Fiyat Önerisi</h2>
+          <button onclick="document.getElementById('pl-pricing-modal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>
+        </div>
+        <div id="pl-pricing-modal-body" style="font-size:13px;color:var(--muted);text-align:center;padding:24px 0">
+          ⏳ Analiz yapılıyor...
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    const body = document.getElementById('pl-pricing-modal-body');
+    try {
+      const rec = await plApi(`/api/pricing/simulate/${productId}`, { method: 'POST' });
+
+      const pct    = parseFloat(rec.priceChangePercent) || 0;
+      const isDown = pct < 0;
+      const pctDisplay = (isDown ? '▼ ' : '▲ +') + Math.abs(pct).toFixed(2) + '%';
+      const pctColor   = isDown ? 'var(--red)' : 'var(--green)';
+      const confPct    = Math.round((rec.confidenceScore || 0) * 100);
+
+      // Gerekçe — her cümleyi ayrı satıra al
+      const lines = (rec.reasoning || '').split(/\. /).filter(Boolean);
+
+      body.innerHTML = `
+        <div style="text-align:left">
+          <!-- Fiyat bloğu -->
+          <div style="background:var(--bg3);border-radius:10px;padding:16px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <div style="flex:1">
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">MEVCUT</div>
+              <div style="font-size:18px;font-weight:700;text-decoration:line-through;color:var(--muted)">₺${Number(rec.currentPrice).toFixed(2)}</div>
+            </div>
+            <div style="font-size:24px;color:var(--muted)">→</div>
+            <div style="flex:1">
+              <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px">ÖNERİLEN</div>
+              <div style="font-size:22px;font-weight:700">₺${Number(rec.recommendedPrice).toFixed(2)}</div>
+            </div>
+            <div style="font-size:15px;font-weight:700;padding:4px 12px;border-radius:99px;background:${isDown ? 'rgba(220,38,38,.1)' : 'rgba(22,163,74,.1)'};color:${pctColor}">
+              ${pctDisplay}
+            </div>
+          </div>
+
+          <!-- Güven -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:12px;color:var(--muted)">
+            Güven skoru:
+            <div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden">
+              <div style="width:${confPct}%;height:100%;border-radius:99px;background:${confPct>=76?'var(--green)':confPct>=50?'var(--yellow)':'var(--red)'}"></div>
+            </div>
+            <span style="font-weight:600">${confPct}%</span>
+          </div>
+
+          <!-- Gerekçe -->
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Gerekçe</div>
+          <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7;margin-bottom:16px">
+            ${lines.map(l => `• ${esc(l.trim())}`).join('<br>')}
+          </div>
+
+          <!-- Butonlar -->
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('pl-pricing-modal').remove()">Kapat</button>
+            <button class="btn btn-primary btn-sm" onclick="window.navigate('pricing');document.getElementById('pl-pricing-modal').remove()">
+              Öneriler Sayfasına Git →
+            </button>
+          </div>
+        </div>`;
+    } catch (e) {
+      body.innerHTML = `
+        <div style="color:var(--red);margin-bottom:16px">⚠️ ${esc(e.message)}</div>
+        <div style="display:flex;justify-content:flex-end">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('pl-pricing-modal').remove()">Kapat</button>
+        </div>`;
+    }
   };
 
   window._plRunSimulate = async function () {
