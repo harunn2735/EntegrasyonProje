@@ -277,10 +277,6 @@ async function oneriKategori(tedarikciAdi, xmlKategoriMetni, urunAdi, aciklama, 
   // ── ADIM 1: SQL anahtar kelime filtresi ─────────────────────
   const adayKategoriler = filtreKategoriler(urunAdi, aciklama, xmlKategoriMetni);
 
-  const kategoriListesi = adayKategoriler
-    .map(k => `${k.trendyol_id}|${k.tam_yol}`)
-    .join('\n');
-
   console.log(`[filtreKategoriler] "${urunAdi}" → ${adayKategoriler.length} aday:`);
   adayKategoriler.forEach((k, i) =>
     console.log(`  [${i + 1}] ${k.trendyol_id} | ${k.tam_yol}`)
@@ -290,18 +286,39 @@ async function oneriKategori(tedarikciAdi, xmlKategoriMetni, urunAdi, aciklama, 
     `oneriKategori [${urunAdi}]: SQL filtresi ${adayKategoriler.length} aday döndürdü`
   );
 
-  // ── ADIM 2: Claude'a yalnızca filtrelenmiş listeyi gönder ───
-  const markaStr        = marka        ? `Marka: ${marka}` : 'Marka: (belirtilmemiş)';
-  const prefixStr       = barcodePrefix ? `Barkod Prefix: ${barcodePrefix}` : '';
-  const ekBilgi         = [markaStr, prefixStr].filter(Boolean).join('\n');
+  // ── ADIM 2: Claude döngüsü — leaf olmayan kategoriler hariç tutularak maks 3 deneme ──
+  const MAX_DENEME = 3;
+  const haricKategoriIds = new Set();
+  let result = null;
+  let needsLeafReview = false;
+  const model = process.env.AI_MODEL || 'gpt-4o-mini';
 
-  const prompt = `Bir e-ticaret ürününü doğru Trendyol kategorisiyle eşleştirmen gerekiyor.
+  const markaStr  = marka        ? `Marka: ${marka}` : 'Marka: (belirtilmemiş)';
+  const prefixStr = barcodePrefix ? `Barkod Prefix: ${barcodePrefix}` : '';
+  const ekBilgi   = [markaStr, prefixStr].filter(Boolean).join('\n');
+
+  for (let deneme = 0; deneme < MAX_DENEME; deneme++) {
+    const aktifAdaylar = adayKategoriler.filter(k => !haricKategoriIds.has(k.trendyol_id));
+
+    if (aktifAdaylar.length === 0) {
+      addLog('warn', `oneriKategori [${urunAdi}]: tüm adaylar attribute kontrolünde elendi, incelemeye alındı`);
+      needsLeafReview = true;
+      break;
+    }
+
+    const kategoriListesi = aktifAdaylar.map(k => `${k.trendyol_id}|${k.tam_yol}`).join('\n');
+
+    const haricNot = haricKategoriIds.size > 0
+      ? `\nUYARI: ${[...haricKategoriIds].join(', ')} ID'li kategoriler Trendyol'da attribute tanımlamıyor (üst/parent kategori). Bu ID'leri KESINLIKLE SEÇME — daha alt/spesifik bir alt kategori seç.\n`
+      : '';
+
+    const prompt = `Bir e-ticaret ürününü doğru Trendyol kategorisiyle eşleştirmen gerekiyor.
 
 Ürün Adı: ${urunAdi}
 Ürün Açıklaması: ${aciklama ? aciklama : '(belirtilmemiş)'}
 ${ekBilgi}
-
-Aşağıda seninle paylaşılan ${adayKategoriler.length} aday kategori var. SADECE bu liste içinden seç, başka kategori önerme:
+${haricNot}
+Aşağıda seninle paylaşılan ${aktifAdaylar.length} aday kategori var. SADECE bu liste içinden seç, başka kategori önerme:
 ${kategoriListesi}
 
 Kategori seçerken şu kurallara uy:
@@ -334,55 +351,77 @@ Kategori seçerken şu kurallara uy:
 SADECE aşağıdaki JSON formatında yanıt ver — başka açıklama ekleme:
 {"trendyol_id": <sayı>, "tam_yol": "<seçilen kategorinin tam_yol değeri>", "guven_skoru": <0.0 ile 1.0 arasında ondalık>, "gerekce": "<kısa Türkçe gerekçe>"}`;
 
-  const model = process.env.AI_MODEL || 'gpt-4o-mini';
+    let denemeResult;
+    try {
+      const completion = await getClient().chat.completions.create({
+        model,
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }],
+      });
 
-  let result;
-  try {
-    const completion = await getClient().chat.completions.create({
-      model,
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    });
+      const text = completion.choices[0].message.content?.trim() || '';
+      if (!text) throw new Error('OpenAI boş yanıt döndürdü');
 
-    const text = completion.choices[0].message.content?.trim() || '';
-    if (!text) throw new Error('OpenAI boş yanıt döndürdü');
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error(`Geçerli JSON bulunamadı. Yanıt: ${text.slice(0, 300)}`);
-    }
-
-    result = JSON.parse(jsonMatch[0]);
-
-    if (typeof result.trendyol_id !== 'number' || typeof result.guven_skoru !== 'number') {
-      throw new Error(`Eksik JSON alanı. Alınan: ${JSON.stringify(result)}`);
-    }
-
-    // Claude'un seçtiği trendyol_id, aday listede yer alıyor mu?
-    const secimGecerli = adayKategoriler.some(k => k.trendyol_id === result.trendyol_id);
-    if (!secimGecerli) {
-      // Claude listeye uymayan bir ID döndürdü; tam_yol ile adaydan bulmaya çalış
-      const eslesiyor = adayKategoriler.find(
-        k => k.tam_yol === result.tam_yol || k.tam_yol.includes(result.tam_yol)
-      );
-      if (eslesiyor) {
-        result.trendyol_id = eslesiyor.trendyol_id;
-        result.tam_yol = eslesiyor.tam_yol;
-      } else {
-        // Listedeki en güvenilir adayı fallback olarak kullan
-        result.trendyol_id = adayKategoriler[0].trendyol_id;
-        result.tam_yol = adayKategoriler[0].tam_yol;
-        result.guven_skoru = Math.min(result.guven_skoru, 0.5);
-        addLog('warn', `oneriKategori: Claude liste dışı ID seçti, ilk adaya düşüldü [${urunAdi}]`);
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error(`Geçerli JSON bulunamadı. Yanıt: ${text.slice(0, 300)}`);
       }
+
+      denemeResult = JSON.parse(jsonMatch[0]);
+
+      if (typeof denemeResult.trendyol_id !== 'number' || typeof denemeResult.guven_skoru !== 'number') {
+        throw new Error(`Eksik JSON alanı. Alınan: ${JSON.stringify(denemeResult)}`);
+      }
+
+      // Claude'un seçtiği trendyol_id, aday listede yer alıyor mu?
+      const secimGecerli = aktifAdaylar.some(k => k.trendyol_id === denemeResult.trendyol_id);
+      if (!secimGecerli) {
+        const eslesiyor = aktifAdaylar.find(
+          k => k.tam_yol === denemeResult.tam_yol || k.tam_yol.includes(denemeResult.tam_yol)
+        );
+        if (eslesiyor) {
+          denemeResult.trendyol_id = eslesiyor.trendyol_id;
+          denemeResult.tam_yol = eslesiyor.tam_yol;
+        } else {
+          denemeResult.trendyol_id = aktifAdaylar[0].trendyol_id;
+          denemeResult.tam_yol = aktifAdaylar[0].tam_yol;
+          denemeResult.guven_skoru = Math.min(denemeResult.guven_skoru, 0.5);
+          addLog('warn', `oneriKategori: Claude liste dışı ID seçti, ilk adaya düşüldü [${urunAdi}]`);
+        }
+      }
+    } catch (err) {
+      addLog('error', `oneriKategori hatası [${urunAdi}] deneme ${deneme + 1}: ${err.message}`);
+      return { trendyol_id: null, guven_skoru: 0, gerekce: 'AI servisi kullanılamıyor' };
     }
-  } catch (err) {
-    addLog('error', `oneriKategori hatası [${urunAdi}]: ${err.message}`);
-    return { trendyol_id: null, guven_skoru: 0, gerekce: 'AI servisi kullanılamıyor' };
+
+    // Attribute kontrolü: seçilen kategoride attribute var mı?
+    const attrSayisi = await fetchVeKaydetAttributeSayisi(denemeResult.trendyol_id);
+
+    if (attrSayisi === null || attrSayisi > 0) {
+      // null = API hatası (ihtiyatlı davran, kabul et) | >0 = leaf kategori, kabul et
+      result = denemeResult;
+      break;
+    }
+
+    // Attribute yok — bu kategoriyi hariç tut, bir sonraki denemede farklı seçilsin
+    addLog('warn',
+      `oneriKategori [${urunAdi}]: ${denemeResult.trendyol_id} (${denemeResult.tam_yol}) ` +
+      `attribute yok (deneme ${deneme + 1}/${MAX_DENEME}), yeniden deniyor`
+    );
+    haricKategoriIds.add(denemeResult.trendyol_id);
+    result = denemeResult; // Son denemenin sonucunu sakla (hafızaya kaydet için lazım)
+
+    if (deneme === MAX_DENEME - 1) {
+      needsLeafReview = true;
+      addLog('warn', `oneriKategori [${urunAdi}]: ${MAX_DENEME} denemede leaf kategori bulunamadı, incelemeye alındı`);
+    }
+  }
+
+  if (!result) {
+    return { trendyol_id: null, guven_skoru: 0, gerekce: 'Leaf kategori bulunamadı' };
   }
 
   // ── Hafızaya kaydet ─────────────────────────────────────────
-  // trendyol_id değil, trendyol_kategoriler.id FK gerekiyor
   const katRow = db
     .prepare('SELECT id FROM trendyol_kategoriler WHERE trendyol_id = ?')
     .get(result.trendyol_id);
@@ -400,8 +439,8 @@ SADECE aşağıdaki JSON formatında yanıt ver — başka açıklama ekleme:
     const saved = stmtHafizaAra.get(tedarikciAdi, xmlKategoriMetni);
     eslestirmeId = saved?.id ?? null;
 
-    // guven_skoru >= 0.85 → otomatik onayla; altındaysa kullanıcı incelemesine bırak
-    if (eslestirmeId !== null && result.guven_skoru >= 0.85) {
+    // Leaf review gerektiriyorsa asla otomatik onayla; yoksa guven_skoru kontrolü yeterli
+    if (eslestirmeId !== null && result.guven_skoru >= 0.85 && !needsLeafReview) {
       stmtKullanicOnayla.run(eslestirmeId);
       otomatikOnaylandi = true;
     }
@@ -414,6 +453,7 @@ SADECE aşağıdaki JSON formatında yanıt ver — başka açıklama ekleme:
     kaynak: 'claude',
     eslestirme_id: eslestirmeId,
     otomatik_onaylandi: otomatikOnaylandi,
+    needsLeafReview,
   };
 }
 
