@@ -3816,6 +3816,23 @@ startXmlSyncCron(importXmlFeedById);
 startPricingCron(db);
 startAutoAnswerCron();
 
+// has_attributes=0 olan kategorilere atanmış ürünleri incelemeye al
+try {
+    const flagged = db.prepare(`
+        UPDATE dealer_products
+        SET needs_category_review = 1, updated_at = datetime('now')
+        WHERE xml_category_id IN (
+            SELECT trendyol_id FROM trendyol_kategoriler WHERE has_attributes = 0
+        )
+        AND needs_category_review = 0
+    `).run();
+    if (flagged.changes > 0) {
+        console.log(`⚠️  ${flagged.changes} ürün non-leaf kategoriye atanmış, incelemeye alındı`);
+    }
+} catch (err) {
+    console.error('Startup leaf flag hatası:', err.message);
+}
+
 app.listen(PORT, () => {
     console.log(`✅ Sunucu http://localhost:${PORT} üzerinde çalışıyor.`);
     console.log(`📦 Admin Panel: http://localhost:${PORT}/admin (Şifre: ${ADMIN_PASSWORD})`);
