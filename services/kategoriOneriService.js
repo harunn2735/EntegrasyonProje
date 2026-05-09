@@ -348,19 +348,18 @@ SADECE seçilen kategorinin ID numarasını yaz — başka hiçbir şey yazma.
     try {
       const completion = await getClient().chat.completions.create({
         model,
-        max_tokens: 16,
+        max_tokens: 32,
         messages: [{ role: 'user', content: prompt }],
       });
 
       const text = completion.choices[0].message.content?.trim() || '';
-      console.log(`[AI RESPONSE] deneme=${deneme + 1}: "${text}"`);
+      console.log('[AI RAW RESPONSE]', JSON.stringify(text));
       if (!text) throw new Error('OpenAI boş yanıt döndürdü');
 
       // Yanıt sade bir sayı olmalı (örn. "4546")
       const idMatch = text.match(/\d+/);
-      if (!idMatch) throw new Error(`Geçerli ID bulunamadı. Yanıt: "${text}"`);
-
-      const seciliId = parseInt(idMatch[0], 10);
+      const seciliId = parseInt(idMatch?.[0], 10);
+      console.log('[AI PARSED ID]', seciliId);
       const seciliAday = aktifAdaylar.find(k => k.trendyol_id === seciliId);
 
       if (seciliAday) {
