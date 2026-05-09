@@ -100,7 +100,7 @@ const stmtKategoriVarMi = db.prepare(
 // Renk, nitelik, sayı, edat gibi kategori aramasında işe yaramayan kelimeler.
 // Tümü küçük harfle tanımlanır; karşılaştırma da küçük harfe çevrilerek yapılır.
 const ANLAMSIZ_KELIMELER = new Set([
-  'antrasit', 'beyaz', 'siyah', 'gri', 'renkli', 'kirmizi', 'mavi', 'yesil',
+  'antrasit', 'beyaz', 'siyah', 'gri', 'renkli', 'renk', 'kirmizi', 'mavi', 'yesil',
   'sari', 'mor', 'turuncu', 'pembe', 'kahverengi', 'altin', 'gumus', 'krem',
   'modern', 'dekoratif', 'klasik', 'sade', 'sik', 'seri', 'siva',
   've', 'ile', 'icin', 'için', 'ustu', 'üstü', 'alti', 'altı',
@@ -138,22 +138,34 @@ function normalizeKelime(kelime) {
 function filtreKategoriler(urunAdi, aciklama, xmlKategoriMetni) {
   const MAX_SONUC = 20;
   const MIN_UZUNLUK = 4;
-  const KOK_UZUNLUK = 5; // LIKE aramasında kullanılacak önek uzunluğu
+  const KOK_UZUNLUK = 5;
 
-  // Map<trendyol_id, satır> — tekrarsız biriktirici
+  // Map<trendyol_id, { row, puan }> — her anahtar kelime eşleşmesi +1 puan
+  // Puana göre DESC sıralanarak döndürülür: birden fazla kelimeyle eşleşen
+  // kategoriler (ör. "Priz" VE "Topraklı") tek kelimeyle eşleşenlerin (ör. sadece "Renk")
+  // önüne geçer.
   const harita = new Map();
 
   function araVeEkle(kelimeler) {
     for (const k of kelimeler) {
       if (k.length < MIN_UZUNLUK) continue;
-      // Tam kelime yerine ilk KOK_UZUNLUK karakteriyle ara:
-      // "Topraklı" → "Topra", "Elektrikli" → "Elektr", "Sensörlü" → "Sensö"
       const kok = k.substring(0, KOK_UZUNLUK);
       const rows = stmtKategoriLike.all(`%${kok}%`);
       for (const row of rows) {
-        if (!harita.has(row.trendyol_id)) harita.set(row.trendyol_id, row);
+        if (!harita.has(row.trendyol_id)) {
+          harita.set(row.trendyol_id, { row, puan: 1 });
+        } else {
+          harita.get(row.trendyol_id).puan++;
+        }
       }
     }
+  }
+
+  function puanaSirala() {
+    return Array.from(harita.values())
+      .sort((a, b) => b.puan - a.puan)
+      .slice(0, MAX_SONUC)
+      .map(item => item.row);
   }
 
   function temizleVeFiltrele(metin, maxAdet) {
@@ -165,7 +177,7 @@ function filtreKategoriler(urunAdi, aciklama, xmlKategoriMetni) {
       .slice(0, maxAdet);
   }
 
-  // 1a — urunAdi'nın ilk 3 anlamlı (teknik) kelimesi (%70 ağırlık)
+  // 1a — urunAdi'nın ilk 4 anlamlı kelimesi
   const ilkKelimeler = temizleVeFiltrele(urunAdi, 4);
 
   addLog('info',
@@ -175,7 +187,7 @@ function filtreKategoriler(urunAdi, aciklama, xmlKategoriMetni) {
   araVeEkle(ilkKelimeler);
 
   if (harita.size > 0) {
-    return Array.from(harita.values()).slice(0, MAX_SONUC);
+    return puanaSirala();
   }
 
   // 1b — aciklama ve xmlKategoriMetni kelimeleri (fallback)
@@ -195,7 +207,7 @@ function filtreKategoriler(urunAdi, aciklama, xmlKategoriMetni) {
   araVeEkle(fallbackKelimeler);
 
   if (harita.size > 0) {
-    return Array.from(harita.values()).slice(0, MAX_SONUC);
+    return puanaSirala();
   }
 
   // 1c — hiçbir eşleşme yoksa rastgele 100 al, AI'a 20 gönder
