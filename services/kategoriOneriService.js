@@ -40,6 +40,26 @@ function getAnyDealer() {
     .get();
 }
 
+// Trendyol'dan kategori attribute sayısını çeker ve trendyol_kategoriler.has_attributes'a kaydeder.
+// Dönüş: attribute sayısı (0 = üst kategori, >0 = leaf), null = API hatası (ihtiyatlı davran)
+async function fetchVeKaydetAttributeSayisi(trendyolKategoriId) {
+  const dealer = getAnyDealer();
+  if (!dealer) return null;
+  try {
+    const response = await axios.get(
+      `https://apigw.trendyol.com/integration/product/product-categories/${trendyolKategoriId}/attributes`,
+      { headers: trendyolHeaders(dealer), timeout: 10000 }
+    );
+    const count = (response.data?.categoryAttributes || []).length;
+    db.prepare('UPDATE trendyol_kategoriler SET has_attributes = ? WHERE trendyol_id = ?')
+      .run(count > 0 ? 1 : 0, trendyolKategoriId);
+    return count;
+  } catch (err) {
+    addLog('warn', `fetchVeKaydetAttributeSayisi hata (kategori ${trendyolKategoriId}): ${err.message}`);
+    return null;
+  }
+}
+
 // ── HAFIZA KATMANI ────────────────────────────────────────────
 const stmtHafizaAra = db.prepare(`
   SELECT * FROM kategori_eslestirme
