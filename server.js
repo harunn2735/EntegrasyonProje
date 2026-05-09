@@ -1220,11 +1220,23 @@ app.post('/api/dealer/trendyol-upload/precheck', authMiddleware, async (req, res
             LIMIT 1
         `);
 
+        // Onaylı kategori eşleştirmeleri (supplier_name__category → trendyol API ID)
+        const approvedCatMap = new Map();
+        db.prepare(`
+            SELECT ke.tedarikci_adi, ke.xml_kategori_metni, tk.trendyol_id AS api_id, tk.tam_yol
+            FROM kategori_eslestirme ke
+            JOIN trendyol_kategoriler tk ON tk.id = ke.trendyol_kategori_id
+            WHERE ke.kullanici_onayladi = 1
+        `).all().forEach(r => {
+            approvedCatMap.set(`${r.tedarikci_adi}__${r.xml_kategori_metni}`, { id: r.api_id, name: r.tam_yol });
+        });
+
         const grouped = new Map();
         for (const product of products) {
             const mapping = getUploadCategoryMapping.get(dealerId, product.category, product.xml_feed_id || null, product.xml_feed_id || null);
-            const categoryId = product.xml_category_id || mapping?.trendyol_category_id || null;
-            const categoryName = mapping?.trendyol_category_name || '';
+            const approved = approvedCatMap.get(`${product.supplier_name}__${product.category}`);
+            const categoryId = approved?.id || product.xml_category_id || mapping?.trendyol_category_id || null;
+            const categoryName = approved?.name || mapping?.trendyol_category_name || '';
             const key = `${product.category || ''}__${product.xml_feed_id || 'null'}__${categoryId || 0}`;
             if (!grouped.has(key)) {
                 grouped.set(key, {
@@ -1433,11 +1445,8 @@ async function importXmlFeedById(dealerId, feedId) {
                 ornek.brand || '',
                 ornek.barcodePrefix || ''
             );
-            if (oneri.guven_skoru >= 0.85) {
-                aiResolutions.set(categoryText, { xmlCategoryId: oneri.trendyol_id, needsReview: 0 });
-            } else {
-                aiResolutions.set(categoryText, { xmlCategoryId: oneri.trendyol_id, needsReview: 1 });
-            }
+            const needsReview = (oneri.needsLeafReview || oneri.guven_skoru < 0.85) ? 1 : 0;
+            aiResolutions.set(categoryText, { xmlCategoryId: oneri.trendyol_id, needsReview });
         } catch (err) {
             addLog('warn', `AI kategori önerisi başarısız [${categoryText}]: ${err.message}`, dealerId);
             aiResolutions.set(categoryText, { xmlCategoryId: null, needsReview: 1 });
@@ -1787,7 +1796,7 @@ app.post('/api/dealer/products/bulk-ai-match', authMiddleware, async (req, res) 
             try {
                 const result = await oneriKategori(tedarikci, kategoriMetni, ornek, '', brand, barcodePrefix);
                 if (result.trendyol_id) {
-                    const review = result.guven_skoru >= 0.85 ? 0 : 1;
+                    const review = (result.needsLeafReview || result.guven_skoru < 0.85) ? 1 : 0;
                     const applyWithReview = db.transaction((productIds, trendyolId, needsReview) => {
                         for (const id of productIds) {
                             db.prepare(`UPDATE dealer_products SET xml_category_id = ?, needs_category_review = ?, updated_at = datetime('now') WHERE id = ? AND dealer_id = ?`)
@@ -2601,7 +2610,22 @@ app.get('/api/dealer/categories/verify-xml-stream', authMiddleware, async (req, 
 
                 const isSame = result.trendyol_id === combo.xml_category_id;
 
-                if (isSame) {
+                if (result.needsLeafReview) {
+                    db.prepare(`
+                        UPDATE dealer_products
+                        SET needs_category_review = 1, updated_at = datetime('now')
+                        WHERE dealer_id = ? AND category = ? AND xml_category_id = ?
+                    `).run(dealerId, combo.category, combo.xml_category_id);
+                    changed++;
+                    send({
+                        type: 'progress', current: i + 1, total: combos.length,
+                        category: combo.category, result: 'changed',
+                        current_path: combo.current_path,
+                        suggested_path: result.tam_yol,
+                        affected_products: combo.product_count,
+                        guven_skoru: result.guven_skoru
+                    });
+                } else if (isSame) {
                     verified++;
                     send({
                         type: 'progress', current: i + 1, total: combos.length,
@@ -2627,6 +2651,11 @@ app.get('/api/dealer/categories/verify-xml-stream', authMiddleware, async (req, 
                         guven_skoru: result.guven_skoru
                     });
                 } else {
+                    db.prepare(`
+                        UPDATE dealer_products
+                        SET needs_category_review = 1, updated_at = datetime('now')
+                        WHERE dealer_id = ? AND category = ? AND xml_category_id = ?
+                    `).run(dealerId, combo.category, combo.xml_category_id);
                     low_confidence++;
                     send({
                         type: 'progress', current: i + 1, total: combos.length,
@@ -3295,6 +3324,17 @@ app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
                 { attributeId: 348, attributeValueId: 686230 }
             ];
 
+            // Onaylı kategori eşleştirmeleri: supplier_name__category → trendyol API ID
+            const approvedCategoryApiIds = new Map();
+            db.prepare(`
+                SELECT ke.tedarikci_adi, ke.xml_kategori_metni, tk.trendyol_id AS api_id
+                FROM kategori_eslestirme ke
+                JOIN trendyol_kategoriler tk ON tk.id = ke.trendyol_kategori_id
+                WHERE ke.kullanici_onayladi = 1
+            `).all().forEach(r => {
+                approvedCategoryApiIds.set(`${r.tedarikci_adi}__${r.xml_kategori_metni}`, r.api_id);
+            });
+
             // Kategori başına bir kez çekilir, tekrar istek atılmaz
             const categoryAttrCache = new Map(); // categoryId → [{ id, name, allowCustom, values }]
 
@@ -3479,17 +3519,38 @@ Sadece JSON döndür:
                         }).filter(a => a.attributeId);
                     } catch (e) { }
 
+                    // dealer_products.attributes_json — Kategori Yönetimi'nde manuel/AI doldurulmuş
+                    let productAttributes = [];
+                    try {
+                        const parsed = JSON.parse(p.attributes_json || '[]');
+                        if (Array.isArray(parsed)) {
+                            productAttributes = parsed.map(a => {
+                                if (a.attributeValueId) return { attributeId: a.attributeId, attributeValueId: a.attributeValueId };
+                                if (a.customValue)      return { attributeId: a.attributeId, customAttributeValue: a.customValue };
+                                return null;
+                            }).filter(Boolean);
+                        }
+                    } catch (e) { }
+
                     const mergedAttributes = [...defaultAttributes];
+                    // category_mappings attribute'ları
                     for (const attr of mappedAttributes) {
                         const idx = mergedAttributes.findIndex(a => a.attributeId === attr.attributeId);
                         if (idx >= 0) mergedAttributes[idx] = attr;
                         else mergedAttributes.push(attr);
                     }
-                    // Önce XML'den gelen kategori ID'yi kullan, yoksa keyword eşleştirmeye düş
-                    const finalCategoryId =
-                        (p.xml_category_id && p.xml_category_id > 0)
-                            ? p.xml_category_id
-                            : (savedMapping?.trendyol_category_id || getTrendyolCategoryByName(p.category, p.title) || getCategoryId(`${p.category || ''} ${p.title || ''}`));
+                    // attributes_json en yüksek öncelik — üstteki her şeyi override eder
+                    for (const attr of productAttributes) {
+                        const idx = mergedAttributes.findIndex(a => a.attributeId === attr.attributeId);
+                        if (idx >= 0) mergedAttributes[idx] = attr;
+                        else mergedAttributes.push(attr);
+                    }
+                    // Kategori önceliği: onaylı kategori_eslestirme > xml_category_id > eski eşleştirme
+                    const approvedApiId = approvedCategoryApiIds.get(`${p.supplier_name}__${p.category}`);
+                    const finalCategoryId = approvedApiId
+                        || (p.xml_category_id && p.xml_category_id > 0 ? p.xml_category_id : null)
+                        || savedMapping?.trendyol_category_id
+                        || null;
                     // Kullanıcının seçtiği marka öncelikli; yoksa XML'den gelen brand_name çözülür
                     const resolvedBrandId = overrideBrandId
                         || (p.brand_name
@@ -3573,7 +3634,7 @@ Sadece JSON döndür:
                         quantity: p.stock,
                         stockCode: p.barcode,
                         dimensionalWeight: 1,
-                        description: p.title,
+                        description: (p.ai_aciklama || p.title).substring(0, 3000),
                         currencyType: 'TRY',
                         listPrice: p.sale_price,
                         salePrice: p.sale_price,
