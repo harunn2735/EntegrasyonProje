@@ -67,10 +67,10 @@ const stmtKullanicOnayla = db.prepare(`
 
 // Prepared statements for the 2-step filter
 const stmtKategoriLike = db.prepare(
-  'SELECT id, trendyol_id, tam_yol FROM trendyol_kategoriler WHERE tam_yol LIKE ?'
+  'SELECT id, trendyol_id, tam_yol FROM trendyol_kategoriler WHERE tam_yol LIKE ? AND (has_attributes IS NULL OR has_attributes = 1)'
 );
 const stmtKategoriRastgele = db.prepare(
-  'SELECT id, trendyol_id, tam_yol FROM trendyol_kategoriler ORDER BY RANDOM() LIMIT 100'
+  'SELECT id, trendyol_id, tam_yol FROM trendyol_kategoriler WHERE (has_attributes IS NULL OR has_attributes = 1) ORDER BY RANDOM() LIMIT 100'
 );
 const stmtKategoriVarMi = db.prepare(
   'SELECT COUNT(*) AS sayi FROM trendyol_kategoriler'
