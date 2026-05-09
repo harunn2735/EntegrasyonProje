@@ -324,82 +324,51 @@ async function oneriKategori(tedarikciAdi, xmlKategoriMetni, urunAdi, aciklama, 
       ? `\nUYARI: ${[...haricKategoriIds].join(', ')} ID'li kategoriler Trendyol'da attribute tanımlamıyor (üst/parent kategori). Bu ID'leri KESINLIKLE SEÇME — daha alt/spesifik bir alt kategori seç.\n`
       : '';
 
-    const prompt = `Bir e-ticaret ürününü doğru Trendyol kategorisiyle eşleştirmen gerekiyor.
+    const prompt = `Aşağıdaki Trendyol kategori listesinden ürüne en uygun olanı seç.
 
-Ürün Adı: ${urunAdi}
-Ürün Açıklaması: ${aciklama ? aciklama : '(belirtilmemiş)'}
+Ürün: ${urunAdi}
+Açıklama: ${aciklama ? aciklama.slice(0, 200) : '(yok)'}
 ${ekBilgi}
 ${haricNot}
-Aşağıda seninle paylaşılan ${aktifAdaylar.length} aday kategori var. SADECE bu liste içinden seç, başka kategori önerme:
+Kategoriler (ID|Tam Yol):
 ${kategoriListesi}
 
-Kategori seçerken şu kurallara uy:
+Seçim kuralları:
+- ">" ayracı ne kadar çoksa kategori o kadar spesifik — en derin (leaf) kategoriyi tercih et
+- Ürünün BİRİNCİL işlevine göre seç (şarjlı cihaz → cihazın kategorisi, aksesuar değil)
+- Priz/fiş/kablo/anahtar gibi elektrik malzemeleri → Elektrik Tesisat kategorisi
+${haricKategoriIds.size > 0 ? `- ${[...haricKategoriIds].join(', ')} ID'leri attribute tanımlamıyor, SEÇME` : ''}
 
-0. DAIMA LEAF KATEGORİ SEÇ: En alt seviyedeki (leaf) kategoriyi seç. Üst/parent kategori KESINLIKLE seçme — Trendyol attribute'ları yalnızca leaf kategorilerde tanımlıdır. Listede hem parent hem child varsa, her zaman child/leaf olanı tercih et.
-   ❌ Yanlış: "Elektrik & Aydınlatma"
-   ❌ Yanlış: "Bahçe & Elektrikli El Aletleri"
-   ✅ Doğru: "Elektrik & Aydınlatma > Elektrik Malzemeleri > Prizler > Topraklı Priz"
-   Tam yolda (tam_yol) ">" ayracı ne kadar çoksa, kategori o kadar spesifik ve tercih edilebilirdir.
+SADECE seçilen kategorinin ID numarasını yaz — başka hiçbir şey yazma.
+Örnek doğru yanıt: 4546`;
 
-1. TEKNIK TERIMLER ÖNCELİKLİ: Ürün adındaki teknik terimlere öncelik ver; genel açıklamayı değil, teknik terimi belirleyici kriter olarak kullan.
-
-2. MARKA İPUCU: Marka bilgisi varsa, o markanın hangi ürün grubuna ait olduğunu kategori seçiminde dikkate al.
-
-3. BARKOD PREFİX: "tt-", "bxml-" gibi prefix'ler tedarikçi kaynaklıdır, ürün tipiyle ilgisi yoktur — yok say.
-
-4. ELEKTRİK/ELEKTRONİK KURALI: Ürün adında priz, fiş, kablo, anahtar, soket, sigorta, röle, kesici, topraklama gibi terimler varsa MUTLAKA "Elektrik Malzemeleri" ana kategorisi altından seç.
-
-5. BİRİNCİL İŞLEV KURALI: Ürünü BİRİNCİL İŞLEVİNE göre kategorile, aksesuar veya güç kaynağına göre değil.
-   - Şarjlı/pilli/elektrikli cihaz (tıraş makinesi, epilatör, diş fırçası, süpürge, fan, mikser vb.) → cihazın kendi kategorisi (Kişisel Bakım, Mutfak Aletleri, Ev Aletleri vb.) — Pil & Şarj kategorisi KESİNLİKLE DEĞİL
-   - Pil, şarj cihazı, adaptör, şarj kablosu (yalnız aksesuar olarak satılıyor) → Elektronik > Pil & Şarj
-   - Kılıf/kapak/koruyucu → o cihazın kategorisi altında Aksesuar
-   - Yedek parça (bıçak, fırça başlığı, filtre vb.) → Ana ürünün kategorisi > Aksesuar veya Yedek Parça
-   Ürün adında "şarjlı", "pilli", "elektrikli", "kablosuz" geçiyorsa bu ürün BİRİNCİL cihazdır, aksesuar değildir.
-
-6. İLK 3 KELİME AĞIRLIĞI: Ürün adının ilk 3 kelimesine %70 ağırlık ver.
-
-7. DÜŞÜK GÜVEN SKORU: Güven skoru 0.85'in altında kalacaksa, listede daha uygun bir alternatif ara ve gerekçede kısa bir karşılaştırma yap.
-
-SADECE aşağıdaki JSON formatında yanıt ver — başka açıklama ekleme:
-{"trendyol_id": <sayı>, "tam_yol": "<seçilen kategorinin tam_yol değeri>", "guven_skoru": <0.0 ile 1.0 arasında ondalık>, "gerekce": "<kısa Türkçe gerekçe>"}`;
+    console.log(`[AI PROMPT] deneme=${deneme + 1} ürün="${urunAdi}"\n${prompt}`);
 
     let denemeResult;
     try {
       const completion = await getClient().chat.completions.create({
         model,
-        max_tokens: 1024,
+        max_tokens: 16,
         messages: [{ role: 'user', content: prompt }],
       });
 
       const text = completion.choices[0].message.content?.trim() || '';
+      console.log(`[AI RESPONSE] deneme=${deneme + 1}: "${text}"`);
       if (!text) throw new Error('OpenAI boş yanıt döndürdü');
 
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error(`Geçerli JSON bulunamadı. Yanıt: ${text.slice(0, 300)}`);
-      }
+      // Yanıt sade bir sayı olmalı (örn. "4546")
+      const idMatch = text.match(/\d+/);
+      if (!idMatch) throw new Error(`Geçerli ID bulunamadı. Yanıt: "${text}"`);
 
-      denemeResult = JSON.parse(jsonMatch[0]);
+      const seciliId = parseInt(idMatch[0], 10);
+      const seciliAday = aktifAdaylar.find(k => k.trendyol_id === seciliId);
 
-      if (typeof denemeResult.trendyol_id !== 'number' || typeof denemeResult.guven_skoru !== 'number') {
-        throw new Error(`Eksik JSON alanı. Alınan: ${JSON.stringify(denemeResult)}`);
-      }
-
-      // Claude'un seçtiği trendyol_id, aday listede yer alıyor mu?
-      const secimGecerli = aktifAdaylar.some(k => k.trendyol_id === denemeResult.trendyol_id);
-      if (!secimGecerli) {
-        const eslesiyor = aktifAdaylar.find(
-          k => k.tam_yol === denemeResult.tam_yol || k.tam_yol.includes(denemeResult.tam_yol)
-        );
-        if (eslesiyor) {
-          denemeResult.trendyol_id = eslesiyor.trendyol_id;
-          denemeResult.tam_yol = eslesiyor.tam_yol;
-        } else {
-          denemeResult.trendyol_id = aktifAdaylar[0].trendyol_id;
-          denemeResult.tam_yol = aktifAdaylar[0].tam_yol;
-          denemeResult.guven_skoru = Math.min(denemeResult.guven_skoru, 0.5);
-          addLog('warn', `oneriKategori: Claude liste dışı ID seçti, ilk adaya düşüldü [${urunAdi}]`);
-        }
+      if (seciliAday) {
+        denemeResult = { trendyol_id: seciliId, tam_yol: seciliAday.tam_yol, guven_skoru: 0.85 };
+      } else {
+        // AI listede olmayan ID döndürdü — fallback: ilk aday
+        addLog('warn', `oneriKategori: AI liste dışı ID döndürdü (${seciliId}), ilk adaya düşüldü [${urunAdi}]`);
+        denemeResult = { trendyol_id: aktifAdaylar[0].trendyol_id, tam_yol: aktifAdaylar[0].tam_yol, guven_skoru: 0.5 };
       }
     } catch (err) {
       addLog('error', `oneriKategori hatası [${urunAdi}] deneme ${deneme + 1}: ${err.message}`);
