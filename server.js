@@ -23,7 +23,7 @@ const alertService = require('./services/profitAlert');
 const { oneriKategori, kullaniciOnayla, oneriAttributeDoldur } = require('./services/kategoriOneriService');
 const { searchKategoriler } = require('./services/kategoriService');
 const { urunIcerikUret } = require('./services/urunIcerikService');
-const { OpenAI } = require('openai');
+const { generate: geminiGenerate } = require('./services/geminiClient');
 
 require('dotenv').config();
 
@@ -3383,11 +3383,11 @@ app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
                 'SELECT tam_yol FROM trendyol_kategoriler WHERE trendyol_id = ? LIMIT 1'
             );
 
-            // OpenAI ile eksik attribute'ları doldurur.
+            // Gemini ile eksik attribute'ları doldurur.
             // missingAttrs: [{ id, name, allowCustom, values: [{id, name}] }]
             // Döndürür: [{ attributeId, attributeValueId? , customAttributeValue? }]
             async function fillMissingAttrsWithAI(title, categoryId, missingAttrs) {
-                if (!missingAttrs.length || !process.env.OPENAI_API_KEY) return [];
+                if (!missingAttrs.length || !process.env.GEMINI_API_KEY) return [];
 
                 const catRow = getCategoryTamYol.get(categoryId);
                 const categoryPath = catRow?.tam_yol || `Kategori ${categoryId}`;
@@ -3410,16 +3410,10 @@ Sadece JSON döndür:
 
                 let aiText = '';
                 try {
-                    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-                    const completion = await openai.chat.completions.create({
-                        model: 'gpt-4o-mini',
-                        max_tokens: 512,
-                        messages: [{ role: 'user', content: prompt }],
-                    });
-                    aiText = completion.choices[0].message.content?.trim() || '';
-                    console.log(`[upload] OpenAI yanıtı alındı: ${aiText.slice(0, 120)}`);
+                    aiText = await geminiGenerate(prompt, { maxOutputTokens: 512 });
+                    console.log(`[upload] Gemini yanıtı alındı: ${aiText.slice(0, 120)}`);
                 } catch (err) {
-                    addLog('warn', `fillMissingAttrsWithAI OpenAI hatası [${title}]: ${err.message}`, dealerId);
+                    addLog('warn', `fillMissingAttrsWithAI Gemini hatası [${title}]: ${err.message}`, dealerId);
                     return [];
                 }
 
@@ -3599,7 +3593,7 @@ Sadece JSON döndür:
                             }
                         }
 
-                        // 3. Hâlâ eksikler varsa OpenAI ile doldur
+                        // 3. Hâlâ eksikler varsa Gemini ile doldur
                         if (stillMissing.length > 0) {
                             console.log(`[upload] fillMissingAttrsWithAI çağrılıyor, eksik: ${stillMissing.map(a => a.name).join(', ')} [${p.barcode}]`);
                             try {

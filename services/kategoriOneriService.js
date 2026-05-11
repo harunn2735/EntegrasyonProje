@@ -2,18 +2,8 @@
 'use strict';
 
 const axios = require('axios');
-const { OpenAI } = require('openai');
 const db = require('../database');
-
-// ── CLIENT ────────────────────────────────────────────────────
-let client = null;
-
-function getClient() {
-  if (!client) {
-    client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  }
-  return client;
-}
+const { generate } = require('./geminiClient');
 
 // ── YARDIMCILAR ───────────────────────────────────────────────
 function addLog(level, message, dealerId = null) {
@@ -274,8 +264,8 @@ async function oneriKategori(tedarikciAdi, xmlKategoriMetni, urunAdi, aciklama, 
   }
 
   // ── Ön koşul kontrolleri ────────────────────────────────────
-  if (!process.env.OPENAI_API_KEY) {
-    const msg = 'oneriKategori: OPENAI_API_KEY tanımlı değil';
+  if (!process.env.GEMINI_API_KEY) {
+    const msg = 'oneriKategori: GEMINI_API_KEY tanımlı değil';
     addLog('error', msg);
     throw new Error(msg);
   }
@@ -303,7 +293,6 @@ async function oneriKategori(tedarikciAdi, xmlKategoriMetni, urunAdi, aciklama, 
   const haricKategoriIds = new Set();
   let result = null;
   let needsLeafReview = false;
-  const model = process.env.AI_MODEL || 'gpt-4o-mini';
 
   const markaStr  = marka        ? `Marka: ${marka}` : 'Marka: (belirtilmemiş)';
   const prefixStr = barcodePrefix ? `Barkod Prefix: ${barcodePrefix}` : '';
@@ -346,15 +335,9 @@ SADECE seçilen kategorinin ID numarasını yaz — başka hiçbir şey yazma.
 
     let denemeResult;
     try {
-      const completion = await getClient().chat.completions.create({
-        model,
-        max_tokens: 32,
-        messages: [{ role: 'user', content: prompt }],
-      });
-
-      const text = completion.choices[0].message.content?.trim() || '';
+      const text = await generate(prompt, { maxOutputTokens: 32 });
       console.log('[AI RAW RESPONSE]', JSON.stringify(text));
-      if (!text) throw new Error('OpenAI boş yanıt döndürdü');
+      if (!text) throw new Error('Gemini boş yanıt döndürdü');
 
       // Yanıt sade bir sayı olmalı (örn. "4546")
       const idMatch = text.match(/\d+/);
@@ -460,8 +443,8 @@ function kullaniciOnayla(eslestirmeId) {
  * @returns {Promise<Array<{xml_alan: string, trendyol_attribute: string, zorunlu: boolean}>>}
  */
 async function oneriAttributeMap(trendyolKategoriId, xmlAlanlari) {
-  if (!process.env.OPENAI_API_KEY) {
-    const msg = 'oneriAttributeMap: OPENAI_API_KEY tanımlı değil';
+  if (!process.env.GEMINI_API_KEY) {
+    const msg = 'oneriAttributeMap: GEMINI_API_KEY tanımlı değil';
     addLog('error', msg);
     throw new Error(msg);
   }
@@ -520,19 +503,10 @@ Sadece makul ve anlamlı eşleşmeleri dahil et. Eşleştirilemeyen alanları at
 SADECE aşağıdaki JSON array formatında yanıt ver — başka hiçbir şey ekleme:
 [{"xml_alan": "<xml alan adı>", "trendyol_attribute": "<trendyol attribute adı>", "zorunlu": <true veya false>}]`;
 
-  const model = process.env.AI_MODEL || 'gpt-4o-mini';
-
   try {
-    const completion = await getClient().chat.completions.create({
-      model,
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    const text = await generate(prompt, { maxOutputTokens: 2048 });
+    if (!text) throw new Error('Gemini boş yanıt döndürdü');
 
-    const text = completion.choices[0].message.content?.trim() || '';
-    if (!text) throw new Error('OpenAI boş yanıt döndürdü');
-
-    // JSON array'i bul ve parse et
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error(`Geçerli JSON array bulunamadı. Yanıt: ${text.slice(0, 300)}`);
@@ -557,7 +531,7 @@ SADECE aşağıdaki JSON array formatında yanıt ver — başka hiçbir şey ek
  * @returns {Promise<Array<{attributeId,attributeValueId?} | {attributeId,customValue?}>>}
  */
 async function oneriAttributeDoldur(urunAdi, attributes) {
-  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY tanımlı değil');
+  if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY tanımlı değil');
   if (!attributes || attributes.length === 0) return [];
 
   const attrListesi = attributes.map(a => {
@@ -582,16 +556,8 @@ Kurallar:
 
 Format: [{"attributeId": <number>, "attributeValueId": <number>}] veya [{"attributeId": <number>, "customValue": "<metin>"}]`;
 
-  const model = process.env.AI_MODEL || 'gpt-4o-mini';
-
   try {
-    const completion = await getClient().chat.completions.create({
-      model,
-      max_tokens: 512,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const text = completion.choices[0].message.content?.trim() || '';
+    const text = await generate(prompt, { maxOutputTokens: 512 });
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) return [];
 
