@@ -165,6 +165,27 @@ router.post('/:id/approve', async (req, res) => {
   }
 });
 
+// ── POST /api/questions/:id/regenerate ────────────────────
+router.post('/:id/regenerate', async (req, res) => {
+  const question = db
+    .prepare("SELECT * FROM questions WHERE id = ? AND dealer_id = ? AND status = 'pending'")
+    .get(req.params.id, req.dealer.id);
+
+  if (!question) {
+    return res.status(404).json({ error: 'Soru bulunamadı veya zaten işlendi' });
+  }
+
+  const dealer = db.prepare('SELECT name FROM dealers WHERE id = ?').get(req.dealer.id);
+  const aiAnswer = await generateAnswer(dealer?.name || '', question.product_name, question.question_text);
+
+  if (!aiAnswer) {
+    return res.status(502).json({ error: 'AI cevabı üretilemedi' });
+  }
+
+  db.prepare("UPDATE questions SET ai_answer = ? WHERE id = ?").run(aiAnswer, question.id);
+  res.json({ ok: true, ai_answer: aiAnswer });
+});
+
 // ── POST /api/questions/:id/reject ─────────────────────────
 router.post('/:id/reject', (req, res) => {
   try {

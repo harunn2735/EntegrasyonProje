@@ -949,15 +949,16 @@
         filledEl.textContent  = d.filled;
         skippedEl.textContent = d.skipped;
         errorsEl.textContent  = d.errors;
-        afLog(`✅ Tamamlandı: ${d.filled} dolduruldu · ${d.skipped} atlandı · ${d.errors} hata`);
+        const rematchedCount = d.rematched || 0;
+        afLog(`✅ Tamamlandı: ${d.filled} dolduruldu · ${d.skipped} atlandı · ${d.errors} hata${rematchedCount ? ` · ${rematchedCount} yeniden eşleştirmeye alındı` : ''}`);
+        if (rematchedCount > 0) {
+          afLog(`⚠️ ${rematchedCount} ürün parent kategoride — "🔄 Tümünü Yeniden Eşleştir" çalıştır, ardından tekrar "Toplu AI Doldur" yap`);
+        }
         if (d.skipReasons && Object.keys(d.skipReasons).length > 0) {
           const reasons = Object.entries(d.skipReasons)
             .map(([k, v]) => `${k}: ${v}`)
             .join(', ');
           afLog(`📊 Atlama nedenleri → ${reasons}`);
-          if (d.skipReasons.no_cat_attributes) {
-            afLog('💡 Çözüm: Ürünleri önce leaf kategoriye eşleştir → "🔄 Tümünü Yeniden Eşleştir"');
-          }
         }
         document.getElementById('km-af-close-btn').textContent = 'Kapat';
         kLoadData();
@@ -1066,7 +1067,7 @@
 
     if (kmVxEs) { kmVxEs.close(); kmVxEs = null; }
 
-    kmVxEs = new EventSource(`/api/dealer/categories/verify-xml-stream?token=${encodeURIComponent(token)}`);
+    kmVxEs = new EventSource(`/api/dealer/categories/verify-xml-stream?token=${token}`);
 
     kmVxEs.onmessage = function (e) {
       const d = JSON.parse(e.data);
@@ -1089,7 +1090,7 @@
         const resultMsgs = {
           verified:       `✅ "${d.category}" — doğrulandı (${d.affected_products} ürün)`,
           changed:        `⚠️ "${d.category}" — farklı kategori önerildi, incelemeye alındı (${d.affected_products} ürün)<br>&nbsp;&nbsp;&nbsp;Mevcut: ${d.current_path || '?'}<br>&nbsp;&nbsp;&nbsp;Öneri: ${d.suggested_path || '?'}`,
-          low_confidence: `🔅 "${d.category}" — düşük güven, kaydedildi ama flag set edilmedi (${d.affected_products} ürün)`,
+          low_confidence: `🔅 "${d.category}" — düşük güven, incelemeye alındı (${d.affected_products} ürün)`,
           error:          `❌ "${d.category}" — hata (${d.affected_products} ürün)`
         };
         vxLog(resultMsgs[d.result] || `• ${d.category}`);

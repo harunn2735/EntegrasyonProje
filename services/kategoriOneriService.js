@@ -242,8 +242,11 @@ function filtreKategoriler(urunAdi, aciklama, xmlKategoriMetni) {
  *                    eslestirme_id: number, otomatik_onaylandi?: boolean}>}
  */
 async function oneriKategori(tedarikciAdi, xmlKategoriMetni, urunAdi, aciklama, marka = '', barcodePrefix = '') {
+  console.log(`[oneriKategori] BAŞLADI tedarikci="${tedarikciAdi}" kategori="${xmlKategoriMetni}" urun="${urunAdi}"`);
+
   // ── Hafıza kontrolü ─────────────────────────────────────────
   const hafiza = stmtHafizaAra.get(tedarikciAdi, xmlKategoriMetni);
+  console.log(`[oneriKategori] hafıza: ${hafiza ? `id=${hafiza.id} onaylı=${hafiza.kullanici_onayladi} kat_id=${hafiza.trendyol_kategori_id}` : 'YOK'}`);
 
   if (hafiza && hafiza.kullanici_onayladi === 1) {
     db.prepare(
@@ -254,8 +257,11 @@ async function oneriKategori(tedarikciAdi, xmlKategoriMetni, urunAdi, aciklama, 
       .prepare('SELECT trendyol_id, tam_yol FROM trendyol_kategoriler WHERE id = ?')
       .get(hafiza.trendyol_kategori_id);
 
+    const resolvedId = kat?.trendyol_id ?? hafiza.trendyol_kategori_id;
+    console.log(`[oneriKategori] HAFIZADAN DÖNDÜ trendyol_id=${resolvedId} tam_yol="${kat?.tam_yol || '(bulunamadı)'}"`);
+
     return {
-      trendyol_id: kat?.trendyol_id ?? hafiza.trendyol_kategori_id,
+      trendyol_id: resolvedId,
       tam_yol: kat?.tam_yol || '',
       guven_skoru: hafiza.guven_skoru,
       kaynak: 'hafiza',
@@ -264,14 +270,17 @@ async function oneriKategori(tedarikciAdi, xmlKategoriMetni, urunAdi, aciklama, 
   }
 
   // ── Ön koşul kontrolleri ────────────────────────────────────
-  if (!process.env.GEMINI_API_KEY) {
-    const msg = 'oneriKategori: GEMINI_API_KEY tanımlı değil';
+  const geminiKey = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY;
+  if (!geminiKey) {
+    const msg = 'oneriKategori: GEMINI_API_KEY veya GEMINI_API_KEYS tanımlı değil';
+    console.error('[oneriKategori] HATA:', msg);
     addLog('error', msg);
     throw new Error(msg);
   }
 
   if (stmtKategoriVarMi.get().sayi === 0) {
     const msg = 'Kategori listesi boş. Önce syncKategoriler çalıştırın.';
+    console.error('[oneriKategori] HATA:', msg);
     addLog('warn', msg);
     throw new Error(msg);
   }
@@ -335,7 +344,7 @@ SADECE seçilen kategorinin ID numarasını yaz — başka hiçbir şey yazma.
 
     let denemeResult;
     try {
-      const text = await generate(prompt, { maxOutputTokens: 32 });
+      const text = await generate(prompt, { maxOutputTokens: 128, noThinking: true });
       console.log('[AI RAW RESPONSE]', JSON.stringify(text));
       if (!text) throw new Error('Gemini boş yanıt döndürdü');
 
@@ -443,8 +452,8 @@ function kullaniciOnayla(eslestirmeId) {
  * @returns {Promise<Array<{xml_alan: string, trendyol_attribute: string, zorunlu: boolean}>>}
  */
 async function oneriAttributeMap(trendyolKategoriId, xmlAlanlari) {
-  if (!process.env.GEMINI_API_KEY) {
-    const msg = 'oneriAttributeMap: GEMINI_API_KEY tanımlı değil';
+  if (!process.env.GEMINI_API_KEYS && !process.env.GEMINI_API_KEY) {
+    const msg = 'oneriAttributeMap: GEMINI_API_KEY veya GEMINI_API_KEYS tanımlı değil';
     addLog('error', msg);
     throw new Error(msg);
   }
@@ -530,58 +539,161 @@ SADECE aşağıdaki JSON array formatında yanıt ver — başka hiçbir şey ek
  * @param {Array<{id,name,required,allow_custom,values:{id,name}[]}>} attributes
  * @returns {Promise<Array<{attributeId,attributeValueId?} | {attributeId,customValue?}>>}
  */
+// Attribute adını normalize eder (Türkçe büyük/küçük harf + aksan kaldırma)
+function _norm(s) {
+  return String(s || '').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// Attribute adına göre hardcoded varsayılan döner
+function getAttrHardcodedDefault(attrName) {
+  const n = _norm(attrName);
+  if (n.includes('garanti'))                                   return '2 Yil';
+  if (n.includes('voltaj') || n.includes('volt'))              return '220 V';
+  if (n.includes('frekans'))                                   return '50 Hz';
+  if (n.includes('mensei') || n.includes('ulke') ||
+      n.includes('uretim yeri') || n.includes('koken'))        return 'Cin';
+  if (n.includes('renk') || n.includes('color'))               return 'Cok Renkli';
+  if (n.includes('tip') || n.includes('tur') ||
+      n.includes('cesit') || n.includes('type'))               return 'Standart';
+  return null;
+}
+
+// Değer listesinde needle ile eşleşen option'ı bul (normalize karşılaştırma)
+function _matchValue(values, needle) {
+  const n = _norm(needle);
+  return values.find(v => {
+    const vn = _norm(v.name);
+    return vn === n || vn.includes(n.split(' ')[0]) || n.includes(vn.split(' ')[0]);
+  });
+}
+
+// Hardcoded default'u attribute'a uygular
+function applyHardcodedDefault(attr, rawDefault) {
+  if (!rawDefault) return null;
+  if (attr.values && attr.values.length > 0) {
+    const matched = _matchValue(attr.values, rawDefault);
+    if (matched) return { attributeId: attr.id, attributeValueId: matched.id };
+  }
+  if (attr.allow_custom) return { attributeId: attr.id, customValue: rawDefault };
+  return null;
+}
+
 async function oneriAttributeDoldur(urunAdi, attributes) {
-  if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY tanımlı değil');
+  if (!process.env.GEMINI_API_KEYS && !process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY veya GEMINI_API_KEYS tanımlı değil');
   if (!attributes || attributes.length === 0) return [];
 
+  // ── Prompt ────────────────────────────────────────────────────
   const attrListesi = attributes.map(a => {
     if (a.values && a.values.length > 0) {
-      const degerler = a.values.slice(0, 20).map(v => `${v.id}:${v.name}`).join(', ');
-      return `- ${a.name} (attributeId:${a.id}) → seçenekler: [${degerler}]`;
+      const degerler = a.values.map(v => v.name).join(', ');
+      return `- ${a.name} (ID: ${a.id})\n  Olası değerler: ${degerler}`;
     }
-    return `- ${a.name} (attributeId:${a.id}) → serbest metin`;
+    return `- ${a.name} (ID: ${a.id})\n  Serbest metin (customAttributeValue kullan)`;
   }).join('\n');
 
   const prompt = `Ürün: "${urunAdi}"
 
-Bu ürün için şu zorunlu attribute değerlerini tahmin et:
+Aşağıdaki TÜM ZORUNLU attribute'ları doldur.
+Hiçbirini boş bırakma. Bilmiyorsan en yaygın değeri seç.
+
+Varsayılanlar: Garanti→"2 Yıl", Voltaj→"220 V", Frekans→"50 Hz",
+Menşei/Ülke→"Çin", Renk→"Çok Renkli", Tip/Tür→"Standart"
+
+Zorunlu Attribute'lar:
 ${attrListesi}
 
-Kurallar:
-- Değer listesi olan attribute'lar için listeden bir seçenek seç (attributeValueId kullan)
-- Serbest metin attribute'lar için kısa ve doğru bir değer yaz (customValue kullan)
-- "Menşei" veya "Ülke" içeren attribute'lar için varsayılan değer "Çin"dir; listede "Çin" seçeneğini bul ve kullan. Ürün adında başka bir ülke açıkça geçiyorsa o ülkeyi kullan.
-- Emin olmadığın attribute'ları atla
-- Sadece JSON array döndür, başka açıklama ekleme
+Cevabı SADECE şu JSON formatında ver, başka açıklama ekleme:
+[
+  {"attributeId": 348, "attributeValueId": 686230},
+  {"attributeId": 47, "customAttributeValue": "Antrasit"}
+]`;
 
-Format: [{"attributeId": <number>, "attributeValueId": <number>}] veya [{"attributeId": <number>, "customValue": "<metin>"}]`;
-
+  // ── AI çağrısı ─────────────────────────────────────────────────
+  let aiResults = [];
   try {
-    const text = await generate(prompt, { maxOutputTokens: 512 });
+    const text = await generate(prompt, { maxOutputTokens: 1024, noThinking: true });
+    console.log(`[ATTR] AI ham yanıt (${urunAdi.slice(0, 40)}): ${text.slice(0, 300)}`);
+
     const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) return [];
+    if (jsonMatch) {
+      let parsed;
+      try { parsed = JSON.parse(jsonMatch[0]); } catch (_) { parsed = null; }
 
-    const result = JSON.parse(jsonMatch[0]);
-    if (!Array.isArray(result)) return [];
+      if (Array.isArray(parsed)) {
+        for (const r of parsed) {
+          if (typeof r.attributeId !== 'number') continue;
+          const attr = attributes.find(a => a.id === r.attributeId);
+          if (!attr) continue;
 
-    // Validate: only return entries with correct attributeId + valid value reference
-    return result.filter(r => {
-      if (typeof r.attributeId !== 'number') return false;
-      const attr = attributes.find(a => a.id === r.attributeId);
-      if (!attr) return false;
-      if (typeof r.attributeValueId === 'number') {
-        if (attr.values && attr.values.length > 0) {
-          return attr.values.some(v => v.id === r.attributeValueId);
+          // attributeValueId → doğrula listede var mı; yoksa isimle eşleştirmeyi dene
+          if (typeof r.attributeValueId === 'number') {
+            if (!attr.values || attr.values.length === 0) {
+              aiResults.push({ attributeId: r.attributeId, attributeValueId: r.attributeValueId });
+            } else if (attr.values.some(v => v.id === r.attributeValueId)) {
+              aiResults.push({ attributeId: r.attributeId, attributeValueId: r.attributeValueId });
+            } else {
+              // ID hatalı ama belki AI değer adını biliyordur — boş bırakmak yerine fallback'e düş
+              // (sonraki adımda filledIds'de yoksa yakalanır)
+            }
+            continue;
+          }
+
+          // customAttributeValue veya customValue → serbest metin
+          const customText = r.customAttributeValue || r.customValue;
+          if (typeof customText === 'string' && customText.trim()) {
+            // Değer listesi varsa önce isimle eşleşmeyi dene
+            if (attr.values && attr.values.length > 0) {
+              const matched = _matchValue(attr.values, customText);
+              if (matched) {
+                aiResults.push({ attributeId: r.attributeId, attributeValueId: matched.id });
+                continue;
+              }
+            }
+            if (attr.allow_custom) {
+              aiResults.push({ attributeId: r.attributeId, customValue: customText.trim() });
+            }
+          }
         }
-        return true;
       }
-      if (typeof r.customValue === 'string' && r.customValue.trim()) return true;
-      return false;
-    });
+    }
   } catch (err) {
     addLog('error', `oneriAttributeDoldur hatası [${urunAdi}]: ${err.message}`);
-    return [];
+    throw err;
   }
+
+  // ── Debug log ──────────────────────────────────────────────────
+  const filledByAI = aiResults.map(r => r.attributeId);
+  const missing = attributes.filter(a => !filledByAI.includes(a.id)).map(a => `${a.name}(${a.id})`);
+  console.log(`[ATTR] gerekli: ${attributes.length}`);
+  console.log(`[ATTR] AI doldurdu: ${filledByAI.length}`);
+  if (missing.length) console.log(`[ATTR] eksik: ${missing.join(', ')}`);
+
+  // ── Eksikleri fallback ile doldur: hardcoded default → ilk seçenek ──
+  const filledIds = new Set(filledByAI);
+  for (const a of attributes) {
+    if (filledIds.has(a.id)) continue;
+
+    // 1. İsimle eşleştirme (AI yanlış ID vermiş olabilir, ismi biliyorsa yakalayalım)
+    // Bu adım AI parse sırasında zaten yapıldı, buraya sadece tamamen atlanmışlar gelir.
+
+    // 2. Hardcoded default
+    const entry = applyHardcodedDefault(a, getAttrHardcodedDefault(a.name));
+    if (entry) {
+      console.log(`[ATTR] hardcoded default: ${a.name}(${a.id}) → ${JSON.stringify(entry)}`);
+      aiResults.push(entry);
+      continue;
+    }
+
+    // 3. İlk mevcut seçenek
+    if (a.values && a.values.length > 0) {
+      console.log(`[ATTR] ilk seçenek fallback: ${a.name}(${a.id}) → ${a.values[0].name}`);
+      aiResults.push({ attributeId: a.id, attributeValueId: a.values[0].id });
+    } else if (a.allow_custom) {
+      aiResults.push({ attributeId: a.id, customValue: '-' });
+    }
+  }
+
+  return aiResults;
 }
 
 module.exports = { oneriKategori, oneriAttributeMap, oneriAttributeDoldur, kullaniciOnayla };

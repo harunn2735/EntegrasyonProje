@@ -14,6 +14,8 @@ const analyticsRouter = require('./routes/analytics');
 const startQuestionsCron = require('./cron/questionsCron');
 const startOrdersCron = require('./cron/ordersCron');
 const startXmlSyncCron = require('./cron/xmlSyncCron');
+const { router: reviewsRouter } = require('./routes/reviews');
+const startReviewsCron          = require('./cron/reviewsCron');
 const pricingRouter = require('./routes/pricing');
 const healthRouter  = require('./routes/health');
 const { startPricingCron } = require('./src/jobs/pricingScan');
@@ -23,7 +25,7 @@ const alertService = require('./services/profitAlert');
 const { oneriKategori, kullaniciOnayla, oneriAttributeDoldur } = require('./services/kategoriOneriService');
 const { searchKategoriler } = require('./services/kategoriService');
 const { urunIcerikUret } = require('./services/urunIcerikService');
-const { generate: geminiGenerate } = require('./services/geminiClient');
+const { generate: geminiGenerate, getDailyUsage: geminiDailyUsage } = require('./services/geminiClient');
 
 require('dotenv').config();
 
@@ -538,7 +540,22 @@ app.get('/api/dealer/dashboard', authMiddleware, (req, res) => {
             GROUP BY date(order_date) ORDER BY day
         `).all(dealerId);
 
-        res.json({ totalOrders, totalRefunds, netRevenue, storeCount, productCount, xmlCount, trend });
+        // Yorum istatistikleri (bu hafta + bekleyen yanıt)
+        const reviewStats = db.prepare(`
+          SELECT
+            SUM(CASE WHEN created_at >= datetime('now','-7 days') THEN 1 ELSE 0 END) AS this_week,
+            SUM(CASE WHEN status='Bekliyor' AND ai_response IS NOT NULL THEN 1 ELSE 0 END) AS pending_response,
+            ROUND(100.0 * SUM(CASE WHEN sentiment='pozitif' THEN 1 ELSE 0 END) / MAX(COUNT(*),1), 1) AS satisfaction_pct,
+            (SELECT category FROM customer_reviews cr2
+             WHERE cr2.dealer_id = ? AND cr2.sentiment = 'negatif' AND cr2.category IS NOT NULL
+             GROUP BY category ORDER BY COUNT(*) DESC LIMIT 1) AS top_complaint
+          FROM customer_reviews WHERE dealer_id = ?
+        `).get(dealerId, dealerId);
+
+        res.json({
+          totalOrders, totalRefunds, netRevenue, storeCount, productCount, xmlCount, trend,
+          reviewStats: reviewStats || { this_week: 0, pending_response: 0, satisfaction_pct: 0, top_complaint: null }
+        });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -749,6 +766,99 @@ app.get('/api/dealer/trendyol-categories/:id/attributes-v2', authMiddleware, asy
         const status = e.response?.status === 401 || e.response?.status === 403 ? 502 : 500;
         addLog('error', `Kategori özellikleri alınamadı (#${trendyolCatId}): ${detail}`, dealerId);
         res.status(status).json({ error: detail });
+    }
+});
+
+// ── Kargo şirketleri — üç endpoint sırayla denenir ───────────────────────────
+app.get('/api/dealer/trendyol-cargo-companies', authMiddleware, async (req, res) => {
+    const dealerId = req.dealer.id;
+    try {
+        const store = await (async () => {
+            let s = db.prepare('SELECT * FROM dealers WHERE id = ?').get(dealerId);
+            if (!s?.supplier_id || !s?.api_key || !s?.api_secret) {
+                s = db.prepare(`
+                    SELECT * FROM stores
+                    WHERE dealer_id = ? AND supplier_id IS NOT NULL AND supplier_id != ''
+                      AND api_key IS NOT NULL AND api_key != ''
+                      AND api_secret IS NOT NULL AND api_secret != ''
+                    ORDER BY id ASC LIMIT 1
+                `).get(dealerId);
+            }
+            return s;
+        })();
+
+        if (!store?.supplier_id || !store?.api_key || !store?.api_secret) {
+            return res.status(400).json({ error: 'Trendyol API bilgileri eksik.' });
+        }
+
+        const authString = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
+        const headers = {
+            'Authorization': `Basic ${authString}`,
+            'Content-Type': 'application/json',
+            'User-Agent': `${store.supplier_id} - SelfIntegration`,
+        };
+
+        const endpoints = [
+            `https://apigw.trendyol.com/integration/sellers/${store.supplier_id}/addresses`,
+            `https://apigw.trendyol.com/integration/sellers/${store.supplier_id}/shipment-providers`,
+            `https://apigw.trendyol.com/integration/shipment-providers`,
+        ];
+
+        const results = [];
+        for (const url of endpoints) {
+            try {
+                const r = await axios.get(url, { timeout: 15000, headers });
+                console.log(`[cargo-probe] ✅ 200 — ${url}`);
+                console.log(`[cargo-probe] Response:`, JSON.stringify(r.data, null, 2));
+                results.push({ url, status: r.status, data: r.data });
+            } catch (e) {
+                const status = e.response?.status || 0;
+                const body = e.response?.data ?? e.message;
+                console.log(`[cargo-probe] ❌ ${status} — ${url} — ${JSON.stringify(body)}`);
+                results.push({ url, status, error: body });
+            }
+        }
+
+        res.json(results);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Gemini günlük kullanım ────────────────────────────────────────────────────
+app.get('/api/dealer/gemini-usage', authMiddleware, (req, res) => {
+    const used  = geminiDailyUsage();
+    const limit = parseInt(process.env.GEMINI_DAILY_LIMIT || '0', 10);
+    res.json({
+        used,
+        limit: limit || null,
+        remaining: limit ? Math.max(0, limit - used) : null,
+        limitReached: limit > 0 && used >= limit,
+    });
+});
+
+// ── Kargo şablonları ──────────────────────────────────────────────────────────
+app.get('/api/dealer/trendyol-shipping-addresses', authMiddleware, async (req, res) => {
+    const dealerId = req.dealer.id;
+    try {
+        const response = await withTrendyolCredentialFallback(dealerId, null, async (store) => {
+            const authString = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
+            return axios.get(
+                `https://apigw.trendyol.com/integration/sellers/${store.supplier_id}/shipping-addresses`,
+                {
+                    timeout: 15000,
+                    headers: {
+                        'Authorization': `Basic ${authString}`,
+                        'Content-Type': 'application/json',
+                        'User-Agent': `${store.supplier_id} - SelfIntegration`,
+                    },
+                }
+            );
+        });
+        res.json(response.data);
+    } catch (e) {
+        const detail = e.response?.data?.message || e.response?.data?.errorMessage || e.message;
+        res.status(e.response?.status || 500).json({ error: detail });
     }
 });
 
@@ -1330,9 +1440,15 @@ async function importXmlFeedById(dealerId, feedId) {
     const dealer = db.prepare('SELECT profit_margin FROM dealers WHERE id = ?').get(dealerId);
     const margin = marginRow?.margin ?? dealer?.profit_margin ?? 20;
 
+    // Aktif marka ID'sini oku — yeni ürünler için otomatik ata
+    const activeBrandSetting = db.prepare(
+        "SELECT value FROM dealer_settings WHERE dealer_id = ? AND key = 'active_brand_id'"
+    ).get(dealerId);
+    const activeBrandId = activeBrandSetting ? parseInt(activeBrandSetting.value) || null : null;
+
     const insertOrUpdate = db.prepare(`
-        INSERT INTO dealer_products (dealer_id, barcode, title, category, xml_category_id, stock, cost_price, sale_price, image_url, supplier_name, xml_feed_id, brand_name, needs_category_review, ai_baslik, ai_aciklama, icerik_uretildi)
-        VALUES (@dealer_id, @barcode, @title, @category, @xml_category_id, @stock, @cost_price, @sale_price, @image_url, @supplier_name, @xml_feed_id, @brand_name, @needs_category_review, @ai_baslik, @ai_aciklama, @icerik_uretildi)
+        INSERT INTO dealer_products (dealer_id, barcode, title, category, xml_category_id, stock, cost_price, sale_price, image_url, supplier_name, xml_feed_id, brand_name, brand_id, needs_category_review, ai_baslik, ai_aciklama, icerik_uretildi)
+        VALUES (@dealer_id, @barcode, @title, @category, @xml_category_id, @stock, @cost_price, @sale_price, @image_url, @supplier_name, @xml_feed_id, @brand_name, @brand_id, @needs_category_review, @ai_baslik, @ai_aciklama, @icerik_uretildi)
         ON CONFLICT(dealer_id, barcode) DO UPDATE SET
             title = excluded.title,
             category = excluded.category,
@@ -1342,6 +1458,7 @@ async function importXmlFeedById(dealerId, feedId) {
             sale_price = excluded.sale_price,
             image_url = excluded.image_url,
             brand_name = excluded.brand_name,
+            brand_id = COALESCE(dealer_products.brand_id, excluded.brand_id),
             needs_category_review = excluded.needs_category_review,
             ai_baslik = COALESCE(dealer_products.ai_baslik, excluded.ai_baslik),
             ai_aciklama = COALESCE(dealer_products.ai_aciklama, excluded.ai_aciklama),
@@ -1498,6 +1615,7 @@ async function importXmlFeedById(dealerId, feedId) {
                 xml_feed_id: parseInt(feedId),
                 xml_category_id: xmlCategoryId,
                 brand_name: item.brandName || null,
+                brand_id: activeBrandId,
                 needs_category_review: needsCategoryReview,
                 ai_baslik: aiContent?.baslik || null,
                 ai_aciklama: aiContent?.aciklama || null,
@@ -1790,27 +1908,60 @@ app.post('/api/dealer/products/bulk-ai-match', authMiddleware, async (req, res) 
             for (const id of ids) updateStmt.run(trendyolId, id, dealerId);
         });
 
+        const dailyLimit = parseInt(process.env.GEMINI_DAILY_LIMIT || '0', 10);
         let matched = 0;
-        let _ilkGrup = true;
+        let aiCallCount = 0;
+        let limitReached = false;
         for (const { tedarikci, kategoriMetni, ornek, brand, barcodePrefix, ids } of groups.values()) {
+            if (limitReached) { continue; }
+
+            if (dailyLimit > 0 && geminiDailyUsage() >= dailyLimit) {
+                addLog('warn', `bulk-ai-match: Günlük Gemini limiti (${dailyLimit}) doldu, kalan kategoriler atlandı`, dealerId);
+                limitReached = true;
+                continue;
+            }
+
+            // Gruplar arası 2s bekle (1. grup hariç)
+            if (aiCallCount > 0) await new Promise(r => setTimeout(r, 2000));
+            aiCallCount++;
+
             try {
+                console.log(`[bulk-ai-match] AI çağrısı #${aiCallCount} (günlük #${geminiDailyUsage() + 1}): "${kategoriMetni}" | ürün adedi: ${ids.length}`);
                 const result = await oneriKategori(tedarikci, kategoriMetni, ornek, '', brand, barcodePrefix);
-                if (result.trendyol_id) {
+
+                console.log(`[bulk-ai-match] oneriKategori sonucu: trendyol_id=${result.trendyol_id ?? 'null'} guven=${result.guven_skoru} needsLeafReview=${result.needsLeafReview ?? false} kaynak=${result.kaynak} gerekce=${result.gerekce ?? '-'}`);
+
+                if (!result.trendyol_id) {
+                    console.warn(`[bulk-ai-match] trendyol_id yok — "${kategoriMetni}" için kategori atanamadı. ids=[${ids.join(',')}]`);
+                } else {
                     const review = (result.needsLeafReview || result.guven_skoru < 0.85) ? 1 : 0;
+                    console.log(`[bulk-ai-match] review=${review} (needsLeafReview=${result.needsLeafReview ?? false}, guven=${result.guven_skoru})`);
+
                     const applyWithReview = db.transaction((productIds, trendyolId, needsReview) => {
+                        let changes = 0;
                         for (const id of productIds) {
-                            db.prepare(`UPDATE dealer_products SET xml_category_id = ?, needs_category_review = ?, updated_at = datetime('now') WHERE id = ? AND dealer_id = ?`)
+                            const info = db.prepare(`UPDATE dealer_products SET xml_category_id = ?, needs_category_review = ?, updated_at = datetime('now') WHERE id = ? AND dealer_id = ?`)
                               .run(trendyolId, needsReview, id, dealerId);
+                            changes += info.changes;
                         }
+                        return changes;
                     });
-                    applyWithReview(ids, result.trendyol_id, review);
+                    const dbChanges = applyWithReview(ids, result.trendyol_id, review);
+                    console.log(`[bulk-ai-match] DB güncellendi: ${dbChanges}/${ids.length} satır değişti, xml_category_id=${result.trendyol_id}, needs_category_review=${review}`);
+
                     if (review === 0 && result.eslestirme_id) {
                         try { kullaniciOnayla(result.eslestirme_id); } catch (_) {}
                     }
                     if (review === 0) matched += ids.length;
                 }
-            } catch (_) {
-                // Tek grup hatası diğerlerini durdurmamalı
+            } catch (err) {
+                if (err?.message?.includes('GEMINI_DAILY_LIMIT_EXCEEDED')) {
+                    addLog('warn', `bulk-ai-match: Günlük limit doldu, durduruluyor`, dealerId);
+                    limitReached = true;
+                } else {
+                    console.error(`[bulk-ai-match] HATA — kategori="${kategoriMetni}" ids=[${ids.join(',')}]: ${err.message}`);
+                    addLog('error', `bulk-ai-match hatası [${kategoriMetni}]: ${err.message}`, dealerId);
+                }
             }
         }
 
@@ -1876,10 +2027,27 @@ app.post('/api/dealer/categories/rematch-pending', authMiddleware, async (req, r
             () => ids.forEach(id => applyUpdate.run(trendyolId, id, dealerId))
         )();
 
+        const dailyLimitRm = parseInt(process.env.GEMINI_DAILY_LIMIT || '0', 10);
         let remapped = 0;
         let skipped = 0;
+        let aiCallCountRm = 0;
+        let limitReachedRm = false;
         for (const { tedarikci, kategoriMetni, ornek, brand, barcodePrefix, ids } of groups.values()) {
+            if (limitReachedRm) { skipped += ids.length; continue; }
+
+            if (dailyLimitRm > 0 && geminiDailyUsage() >= dailyLimitRm) {
+                addLog('warn', `rematch-pending: Günlük Gemini limiti (${dailyLimitRm}) doldu, kalan ${groups.size - aiCallCountRm} kategori atlandı`, dealerId);
+                limitReachedRm = true;
+                skipped += ids.length;
+                continue;
+            }
+
+            // Gruplar arası 2s bekle (1. grup hariç)
+            if (aiCallCountRm > 0) await new Promise(r => setTimeout(r, 2000));
+            aiCallCountRm++;
+
             try {
+                console.log(`[rematch-pending] AI çağrısı #${aiCallCountRm} (günlük #${geminiDailyUsage() + 1}): "${kategoriMetni}"`);
                 const result = await oneriKategori(tedarikci, kategoriMetni, ornek, '', brand, barcodePrefix);
                 if (result.trendyol_id) {
                     applyTx(ids, result.trendyol_id);
@@ -1887,7 +2055,11 @@ app.post('/api/dealer/categories/rematch-pending', authMiddleware, async (req, r
                 } else {
                     skipped += ids.length;
                 }
-            } catch (_) {
+            } catch (err) {
+                if (err?.message?.includes('GEMINI_DAILY_LIMIT_EXCEEDED')) {
+                    addLog('warn', `rematch-pending: Günlük limit doldu, durduruluyor`, dealerId);
+                    limitReachedRm = true;
+                }
                 skipped += ids.length;
             }
         }
@@ -2410,6 +2582,7 @@ app.get('/api/dealer/orders', authMiddleware, (req, res) => {
 
 app.use('/api/orders', authMiddleware, orderDetailRouter);
 app.use('/api/questions', authMiddleware, questionsRouter);
+app.use('/api/dealer/reviews', authMiddleware, reviewsRouter);
 app.use('/api', authMiddleware, require('./routes/profit'));
 app.use('/api/forecast', authMiddleware, forecastRouter);
 app.use('/api/analytics', authMiddleware, analyticsRouter);
@@ -2499,8 +2672,11 @@ app.get('/api/products/attributes/auto-fill', authMiddleware, async (req, res) =
             const updateStmt = db.prepare(
                 'UPDATE dealer_products SET attributes_json = ? WHERE id = ? AND dealer_id = ?'
             );
+            const markForReviewStmt = db.prepare(
+                'UPDATE dealer_products SET needs_category_review = 1, updated_at = datetime(\'now\') WHERE id = ? AND dealer_id = ?'
+            );
 
-            let filled = 0, skipped = 0, errors = 0;
+            let filled = 0, skipped = 0, errors = 0, rematched = 0;
             const skipReasons = {}; // reason → count
 
             function recordSkip(reason) {
@@ -2512,20 +2688,41 @@ app.get('/api/products/attributes/auto-fill', authMiddleware, async (req, res) =
             for (let i = 0; i < products.length; i += BATCH) {
                 const batch = products.slice(i, i + BATCH);
 
+                let rateLimited = false;
                 for (let j = 0; j < batch.length; j++) {
+                    if (rateLimited) {
+                        recordSkip('rate_limit');
+                        send({ type: 'progress', processed: i + j + 1, total: products.length, filled, skipped, errors, rematched, skipReason: 'rate_limit', skipTitle: batch[j].title.slice(0, 50) });
+                        continue;
+                    }
                     const p = batch[j];
                     let skipReason = null;
                     try {
                         const attrs    = await getCatAttrs(p.trendyol_cat_id);
                         const required = attrs.filter(a => a.required);
                         if (attrs.length === 0) {
-                            // Trendyol returned nothing — likely a parent/non-leaf category
+                            // Parent/leaf olmayan kategori — yeniden eşleştirme kuyruğuna al
+                            markForReviewStmt.run(p.id, dealerId);
+                            rematched++;
                             skipReason = recordSkip('no_cat_attributes');
+                            console.log(`[auto-fill] Parent kategori, yeniden eşleşmeye alındı: id=${p.id} "${p.title.slice(0,50)}" cat=${p.trendyol_cat_id}`);
                         } else if (required.length === 0) {
-                            // Category has attributes but none are marked required
                             skipReason = recordSkip('no_required_attributes');
                         } else {
                             const predicted = await oneriAttributeDoldur(p.title, required);
+
+                            // Post-fill doğrulama: AI'ın atladığı zorunlu attr'ları default/ilk seçenekle doldur
+                            const filledIds = new Set(predicted.map(r => r.attributeId));
+                            for (const ra of required) {
+                                if (filledIds.has(ra.id)) continue;
+                                // oneriAttributeDoldur zaten bunları dolduruyor olmalı;
+                                // bu katman ikinci güvenlik ağı olarak çalışır
+                                if (ra.values && ra.values.length > 0) {
+                                    predicted.push({ attributeId: ra.id, attributeValueId: ra.values[0].id });
+                                    console.log(`[auto-fill] Güvenlik ağı — zorunlu attr default: id=${ra.id} name="${ra.name}" ürün="${p.title.slice(0,40)}"`);
+                                }
+                            }
+
                             if (predicted.length > 0) {
                                 updateStmt.run(JSON.stringify(predicted), p.id, dealerId);
                                 filled++;
@@ -2534,14 +2731,23 @@ app.get('/api/products/attributes/auto-fill', authMiddleware, async (req, res) =
                             }
                         }
                     } catch (e) {
-                        errors++;
-                        addLog('error', `auto-fill hatası [${p.title}]: ${e.message}`, dealerId);
+                        if (e.message && (e.message.includes('429') || e.message.includes('RESOURCE_EXHAUSTED') || e.message.includes('quota'))) {
+                            rateLimited = true;
+                            recordSkip('rate_limit');
+                            skipReason = 'rate_limit';
+                            addLog('warn', `auto-fill: Gemini rate limit aşıldı, kalan ürünler atlanıyor`, dealerId);
+                        } else {
+                            errors++;
+                            console.error(`[AUTO-FILL HATA] "${p.title.slice(0, 60)}" cat=${p.trendyol_cat_id} — ${e.message}`);
+                            console.error(e.stack);
+                            addLog('error', `auto-fill hatası [${p.title}]: ${e.message}`, dealerId);
+                        }
                     }
                     send({
                         type: 'progress',
                         processed: i + j + 1,
                         total: products.length,
-                        filled, skipped, errors,
+                        filled, skipped, errors, rematched,
                         ...(skipReason && { skipReason, skipTitle: p.title.slice(0, 50) })
                     });
                 }
@@ -2551,7 +2757,10 @@ app.get('/api/products/attributes/auto-fill', authMiddleware, async (req, res) =
                 }
             }
 
-            send({ type: 'done', filled, skipped, errors, skipReasons });
+            if (rematched > 0) {
+                addLog('info', `auto-fill: ${rematched} ürün parent kategoride bulundu, yeniden eşleştirme kuyruğuna alındı`, dealerId);
+            }
+            send({ type: 'done', filled, skipped, errors, rematched, skipReasons });
         } catch (e) {
             send({ type: 'error', message: e.message });
         }
@@ -2712,7 +2921,7 @@ app.get('/api/dealer/settings', authMiddleware, (req, res) => {
 });
 
 app.put('/api/dealer/settings', authMiddleware, (req, res) => {
-    const { xml_sync_enabled, xml_sync_interval_hours } = req.body;
+    const { xml_sync_enabled, xml_sync_interval_hours, cargo_company_id } = req.body;
     const upsert = db.prepare(`
         INSERT INTO dealer_settings (dealer_id, key, value, updated_at)
         VALUES (?, ?, ?, datetime('now'))
@@ -2724,6 +2933,7 @@ app.put('/api/dealer/settings', authMiddleware, (req, res) => {
             const hours = Math.max(1, Math.min(24, parseInt(xml_sync_interval_hours, 10) || 6));
             upsert.run(req.dealer.id, 'xml_sync_interval_hours', String(hours));
         }
+        if (cargo_company_id !== undefined) upsert.run(req.dealer.id, 'cargo_company_id', String(cargo_company_id));
     });
     update();
     res.json({ ok: true });
@@ -3293,6 +3503,11 @@ app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
             const authString = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
             const API_URL = `https://apigw.trendyol.com/integration/product/sellers/${store.supplier_id}/products`;
 
+            const cargoSettingBulk = db.prepare(
+                "SELECT value FROM dealer_settings WHERE dealer_id = ? AND key = 'cargo_company_id'"
+            ).get(dealerId);
+            const cargoCompanyId = cargoSettingBulk ? parseInt(cargoSettingBulk.value, 10) : parseInt(process.env.TRENDYOL_CARGO_COMPANY_ID || '10', 10);
+
             const PLACEHOLDER_IMAGE = 'https://cdn.dsmcdn.com/ty1/product/media/images/20200812/11/7798319/11111/1_1_org.jpg';
             const BANNED_WORDS = ['n11', 'hepsiburada', 'amazon', 'ciceksepeti', 'instagram', 'facebook', 'whatsapp'];
 
@@ -3386,22 +3601,36 @@ app.post('/api/dealer/trendyol-upload', authMiddleware, async (req, res) => {
             // Gemini ile eksik attribute'ları doldurur.
             // missingAttrs: [{ id, name, allowCustom, values: [{id, name}] }]
             // Döndürür: [{ attributeId, attributeValueId? , customAttributeValue? }]
+            // Attribute adı keyword → makul varsayılan
+            function uploadAttrDefault(attrName) {
+                const n = attrName.toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[̀-ͯ]/g, '');
+                if (n.includes('garanti'))                      return '2 Yil';
+                if (n.includes('voltaj') || n.includes('volt')) return '220 V';
+                if (n.includes('frekans'))                      return '50 Hz';
+                if (n.includes('mensei') || n.includes('ulke') || n.includes('uretim yeri') || n.includes('koken')) return 'Cin';
+                if (n.includes('renk') || n.includes('color'))  return 'Cok Renkli';
+                return null;
+            }
+
             async function fillMissingAttrsWithAI(title, categoryId, missingAttrs) {
                 if (!missingAttrs.length || !process.env.GEMINI_API_KEY) return [];
 
                 const catRow = getCategoryTamYol.get(categoryId);
                 const categoryPath = catRow?.tam_yol || `Kategori ${categoryId}`;
 
+                // Tüm değerleri gönder (kırpma yok)
                 const attrLines = missingAttrs.map(a => {
-                    const opts = a.values.slice(0, 20).map(v => v.name).join(', ');
+                    const opts = a.values.map(v => v.name).join(', ');
                     return `${a.name}: seçenekler=[${opts || '(boş)'}], allowCustom=${a.allowCustom}`;
                 }).join('\n');
 
                 const prompt = `Ürün adı: ${title}
 Kategori: ${categoryPath}
 
-Her attribute için verilen seçeneklerden en uygununu seç. Emin olamazsan ilk seçeneği al.
-allowCustom true ise listede uygun yoksa kısa uygun değer yaz.
+Aşağıdaki TÜM zorunlu attribute'ları doldur. Hiçbirini boş bırakma.
+Seçeneklerden en uygununu al. Emin değilsen ilk seçeneği kullan.
+allowCustom true ise listede uygun yoksa kısa değer yaz.
+Varsayılanlar: Garanti→"2 Yıl", Voltaj→"220 V", Frekans→"50 Hz", Menşei/Ülke→"Çin", Renk→"Çok Renkli"
 
 ${attrLines}
 
@@ -3410,11 +3639,11 @@ Sadece JSON döndür:
 
                 let aiText = '';
                 try {
-                    aiText = await geminiGenerate(prompt, { maxOutputTokens: 512 });
-                    console.log(`[upload] Gemini yanıtı alındı: ${aiText.slice(0, 120)}`);
+                    aiText = await geminiGenerate(prompt, { maxOutputTokens: 1024 });
+                    console.log(`[upload] Gemini yanıtı alındı: ${aiText.slice(0, 200)}`);
                 } catch (err) {
                     addLog('warn', `fillMissingAttrsWithAI Gemini hatası [${title}]: ${err.message}`, dealerId);
-                    return [];
+                    // AI yoksa hardcoded default → ilk seçenek ile doldur
                 }
 
                 let parsed = {};
@@ -3426,24 +3655,38 @@ Sadece JSON döndür:
                 const result = [];
                 for (const a of missingAttrs) {
                     const aiValue = parsed[a.name];
-                    if (!aiValue) {
-                        // Parse başarısız → ilk seçeneği kullan
-                        const first = a.values[0];
-                        if (first) result.push({ attributeId: a.id, attributeValueId: first.id });
-                        continue;
+
+                    if (aiValue) {
+                        // Değer listesinde tam/kısmi eşleşme ara
+                        const needle = String(aiValue).toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[̀-ͯ]/g, '');
+                        const matched = a.values.find(v => {
+                            const vn = (v.name || '').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[̀-ͯ]/g, '');
+                            return vn === needle || vn.includes(needle.split(' ')[0]);
+                        });
+                        if (matched?.id) {
+                            result.push({ attributeId: a.id, attributeValueId: matched.id });
+                            continue;
+                        }
+                        if (a.allowCustom) {
+                            result.push({ attributeId: a.id, customAttributeValue: String(aiValue) });
+                            continue;
+                        }
                     }
-                    // Değer listesinde eşleşme ara
-                    const matched = a.values.find(
-                        v => v.name?.toLowerCase() === String(aiValue).toLowerCase()
-                    );
-                    if (matched?.id) {
-                        result.push({ attributeId: a.id, attributeValueId: matched.id });
-                    } else if (a.allowCustom) {
-                        result.push({ attributeId: a.id, customAttributeValue: String(aiValue) });
-                    } else if (a.values[0]) {
-                        // allowCustom=false ve eşleşme yok → ilk seçeneğe düş
-                        result.push({ attributeId: a.id, attributeValueId: a.values[0].id });
+
+                    // AI boş/eşleşmesiz → hardcoded default dene
+                    const defaultVal = uploadAttrDefault(a.name);
+                    if (defaultVal) {
+                        const needle2 = defaultVal.toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[̀-ͯ]/g, '');
+                        const matchedD = a.values.find(v => {
+                            const vn = (v.name || '').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[̀-ͯ]/g, '');
+                            return vn === needle2 || vn.includes(needle2.split(' ')[0]);
+                        });
+                        if (matchedD) { result.push({ attributeId: a.id, attributeValueId: matchedD.id }); continue; }
+                        if (a.allowCustom) { result.push({ attributeId: a.id, customAttributeValue: defaultVal }); continue; }
                     }
+
+                    // Son çare: ilk seçenek
+                    if (a.values[0]) result.push({ attributeId: a.id, attributeValueId: a.values[0].id });
                 }
                 return result;
             }
@@ -3567,15 +3810,23 @@ Sadece JSON döndür:
                             const mapEntry = getAttrMapEntry.get(finalCategoryId, ra.name);
                             if (mapEntry?.varsayilan_deger) resolvedValue = mapEntry.varsayilan_deger;
 
-                            // 2. Ürün alanlarından çıkar
+                            // 2. Ürün alanlarından + hardcoded defaults
                             if (!resolvedValue) {
-                                const nl = ra.name.toLowerCase();
+                                const nl = ra.name.toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[̀-ͯ]/g, '');
                                 if (nl.includes('renk') || nl.includes('color')) {
                                     resolvedValue = p.color || 'Çok Renkli';
                                 } else if (nl.includes('marka') || nl.includes('brand')) {
                                     resolvedValue = p.brand_name || null;
-                                } else if (nl.includes('tip') || nl.includes('model') || nl.includes('tür') || nl.includes('çeşit') || nl.includes('type')) {
+                                } else if (nl.includes('tip') || nl.includes('model') || nl.includes('tur') || nl.includes('cesit') || nl.includes('type')) {
                                     resolvedValue = (p.title || '').trim().split(/\s+/).slice(0, 3).join(' ') || null;
+                                } else if (nl.includes('garanti')) {
+                                    resolvedValue = '2 Yil';
+                                } else if (nl.includes('voltaj') || nl.includes('volt')) {
+                                    resolvedValue = '220 V';
+                                } else if (nl.includes('frekans')) {
+                                    resolvedValue = '50 Hz';
+                                } else if (nl.includes('mensei') || nl.includes('ulke') || nl.includes('uretim yeri') || nl.includes('koken')) {
+                                    resolvedValue = 'Cin';
                                 }
                             }
 
@@ -3633,7 +3884,7 @@ Sadece JSON döndür:
                         listPrice: p.sale_price,
                         salePrice: p.sale_price,
                         vatRate: 20,
-                        cargoCompanyId: 10,
+                        shipmentAddressId: 7865695,
                         images: imageUrls.map(u => ({ url: u })),
                         attributes: mergedAttributes,
                     };
@@ -3724,6 +3975,315 @@ Sadece JSON döndür:
     })();
 });
 
+// ── Ürün Yükle sayfası: hazır ürün listesi ───────────────────────────────────
+app.get('/api/dealer/products/upload-ready', authMiddleware, (req, res) => {
+    const dealerId = req.dealer.id;
+    try {
+        const products = db.prepare(`
+            SELECT dp.id, dp.barcode, dp.title, dp.sale_price,
+                   dp.xml_category_id, dp.brand_id, dp.attributes_json,
+                   dp.ai_aciklama, dp.ai_baslik, dp.stock, dp.image_url,
+                   dp.trendyol_status, dp.needs_category_review,
+                   b.name AS brand_name_resolved,
+                   tk.tam_yol AS kategori_tam_yol
+            FROM dealer_products dp
+            LEFT JOIN brands b ON b.trendyol_brand_id = dp.brand_id
+            LEFT JOIN trendyol_kategoriler tk ON tk.trendyol_id = dp.xml_category_id
+            WHERE dp.dealer_id = ?
+              AND dp.brand_id IS NOT NULL
+              AND dp.xml_category_id IS NOT NULL
+              AND dp.stock > 0
+            ORDER BY dp.updated_at DESC
+            LIMIT 500
+        `).all(dealerId);
+        res.json(products);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Ürün Yükle sayfası: seçili ürünleri Trendyol'a yükle (SSE) ───────────────
+app.post('/api/dealer/products/upload-selected', authMiddleware, async (req, res) => {
+    const dealerId = req.dealer.id;
+    const { ids } = req.body; // number[]
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'ids dizisi boş' });
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+
+    try {
+        // Mağaza kimlik bilgilerini al
+        let store = db.prepare('SELECT * FROM dealers WHERE id = ?').get(dealerId);
+        if (!store?.supplier_id || !store?.api_key || !store?.api_secret) {
+            store = db.prepare(`
+                SELECT * FROM stores
+                WHERE dealer_id = ? AND supplier_id IS NOT NULL AND supplier_id != ''
+                  AND api_key IS NOT NULL AND api_key != ''
+                  AND api_secret IS NOT NULL AND api_secret != ''
+                ORDER BY id ASC LIMIT 1
+            `).get(dealerId);
+        }
+        if (!store?.supplier_id || !store?.api_key || !store?.api_secret) {
+            send({ type: 'error', message: 'Trendyol API bilgileri eksik.' });
+            return res.end();
+        }
+
+        const authString = Buffer.from(`${store.api_key}:${store.api_secret}`).toString('base64');
+        const API_URL = `https://apigw.trendyol.com/integration/product/sellers/${store.supplier_id}/products`;
+
+        const cargoSetting = db.prepare(
+            "SELECT value FROM dealer_settings WHERE dealer_id = ? AND key = 'cargo_company_id'"
+        ).get(dealerId);
+        const cargoCompanyId = cargoSetting ? parseInt(cargoSetting.value, 10) : parseInt(process.env.TRENDYOL_CARGO_COMPANY_ID || '10', 10);
+        const PLACEHOLDER_IMAGE = 'https://cdn.dsmcdn.com/ty1/product/media/images/20200812/11/7798319/11111/1_1_org.jpg';
+        const BANNED_WORDS = ['n11', 'hepsiburada', 'amazon', 'ciceksepeti', 'instagram', 'facebook', 'whatsapp'];
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+        function isValidImageUrl(u) {
+            if (!u || typeof u !== 'string' || !u.toLowerCase().startsWith('http')) return false;
+            const l = u.toLowerCase();
+            return !BANNED_WORDS.some(w => l.includes(w));
+        }
+
+        // Seçili ürünleri DB'den çek — placeholders
+        const placeholders = ids.map(() => '?').join(',');
+        const products = db.prepare(`
+            SELECT dp.*, b.name AS brand_name_resolved,
+                   tk.tam_yol AS kategori_tam_yol
+            FROM dealer_products dp
+            LEFT JOIN brands b ON b.trendyol_brand_id = dp.brand_id
+            LEFT JOIN trendyol_kategoriler tk ON tk.trendyol_id = dp.xml_category_id
+            WHERE dp.dealer_id = ? AND dp.id IN (${placeholders})
+        `).all(dealerId, ...ids);
+
+        if (!products.length) {
+            send({ type: 'error', message: 'Seçili ürün bulunamadı.' });
+            return res.end();
+        }
+
+        send({ type: 'start', total: products.length });
+
+        const updateStatus = db.prepare(
+            "UPDATE dealer_products SET trendyol_status = ?, updated_at = datetime('now') WHERE id = ? AND dealer_id = ?"
+        );
+
+        const defaultAttributes = [
+            { attributeId: 1192, attributeValueId: 10617300 }, // Menşei = CN (Çin)
+            { attributeId: 47,   customAttributeValue: 'Çok Renkli' },
+            { attributeId: 348,  attributeValueId: 686230 },   // Web Color = Çok Renkli
+        ];
+
+        console.log(`[upload-selected] DB'den ${products.length} ürün çekildi, supplier=${store.supplier_id}`);
+
+        // Ürün başına payload oluştur
+        const items = products.map(p => {
+            const rawUrls = (p.image_url || '').split(',').map(u => u.trim()).filter(isValidImageUrl);
+            const images = (rawUrls.length > 0 ? rawUrls.slice(0, 8) : [PLACEHOLDER_IMAGE]).map(url => ({ url }));
+
+            // attributes_json → Trendyol formatına çevir
+            let productAttributes = [];
+            try {
+                const parsed = JSON.parse(p.attributes_json || '[]');
+                if (Array.isArray(parsed)) {
+                    productAttributes = parsed.map(a => {
+                        if (a.attributeValueId) return { attributeId: a.attributeId, attributeValueId: a.attributeValueId };
+                        if (a.customValue)      return { attributeId: a.attributeId, customAttributeValue: a.customValue };
+                        return null;
+                    }).filter(Boolean);
+                }
+            } catch (_) {}
+
+            // Merge: default → productAttributes (productAttributes override)
+            const merged = [...defaultAttributes];
+            for (const attr of productAttributes) {
+                const idx = merged.findIndex(a => a.attributeId === attr.attributeId);
+                if (idx >= 0) merged[idx] = attr;
+                else merged.push(attr);
+            }
+
+            console.log(`[upload-selected] Ürün hazırlandı: barcode=${p.barcode} categoryId=${p.xml_category_id} brandId=${p.brand_id} images=${images.length} attrs=${merged.length}`);
+
+            return {
+                barcode: p.barcode,
+                title: (p.ai_baslik || p.title).substring(0, 100),
+                productMainId: p.barcode,
+                brandId: p.brand_id,
+                categoryId: p.xml_category_id,
+                quantity: p.stock,
+                stockCode: p.barcode,
+                dimensionalWeight: 1,
+                description: (p.ai_aciklama || p.title).substring(0, 3000),
+                currencyType: 'TRY',
+                listPrice: p.sale_price,
+                salePrice: p.sale_price,
+                vatRate: 20,
+                shipmentAddressId: 7865695,
+                images,
+                attributes: merged,
+                _productId: p.id,
+                _title:    p.ai_baslik || p.title,
+            };
+        }).filter(p => {
+            const ok = p.barcode && p.categoryId && p.brandId;
+            if (!ok) console.log(`[upload-selected] FİLTRELENDİ: barcode=${p.barcode} categoryId=${p.categoryId} brandId=${p.brandId}`);
+            return ok;
+        });
+
+        console.log(`[upload-selected] Payload hazır: ${items.length} ürün yüklenecek`);
+
+        if (!items.length) {
+            send({ type: 'error', message: 'Yüklenebilir ürün bulunamadı (barkod/kategori/marka eksik).' });
+            return res.end();
+        }
+
+        // Batch gönder (maks 50)
+        const BATCH_SIZE = 50;
+        let succeeded = 0, failed = 0;
+
+        for (let i = 0; i < items.length; i += BATCH_SIZE) {
+            const batch = items.slice(i, i + BATCH_SIZE);
+            const payload = batch.map(({ _productId, _title, ...rest }) => rest);
+
+            console.log(`[upload-selected] POST ${API_URL} — ${payload.length} ürün`);
+            console.log('[UPLOAD PAYLOAD]', JSON.stringify({ items: payload }, null, 2));
+
+            let batchRequestId = null;
+            try {
+                const postRes = await axios.post(API_URL, { items: payload }, {
+                    headers: {
+                        Authorization: `Basic ${authString}`,
+                        'Content-Type': 'application/json',
+                        'User-Agent': `${store.supplier_id} - SelfIntegration`,
+                    },
+                    timeout: 15000,
+                });
+                console.log(`[upload-selected] POST yanıtı: status=${postRes.status} data=${JSON.stringify(postRes.data)}`);
+                batchRequestId = postRes.data?.batchRequestId;
+            } catch (postErr) {
+                console.log('[TRENDYOL ERROR] POST:', postErr.response?.data);
+                console.log(`[upload-selected] POST HTTP status: ${postErr.response?.status}`);
+                const errMsg = postErr.response?.data?.message || postErr.message;
+                for (const item of batch) {
+                    updateStatus.run('failed', item._productId, dealerId);
+                    send({ type: 'result', id: item._productId, barcode: item.barcode, title: item._title, status: 'error', error: errMsg });
+                    failed++;
+                }
+                continue;
+            }
+
+            console.log(`[upload-selected] batchRequestId=${batchRequestId}`);
+
+            if (!batchRequestId) {
+                console.log(`[upload-selected] batchRequestId yok — processing olarak işaretle`);
+                for (const item of batch) {
+                    updateStatus.run('processing', item._productId, dealerId);
+                    send({ type: 'result', id: item._productId, barcode: item.barcode, title: item._title, status: 'processing' });
+                }
+                continue;
+            }
+
+            // Batch sonucunu bekle
+            const batchUrl = `https://apigw.trendyol.com/integration/product/sellers/${store.supplier_id}/products/batch-requests/${batchRequestId}`;
+            let batchData = null;
+            let completedEmptyCount = 0;
+            // İlk polling öncesi 3 sn bekle — ürün henüz işlenmemiş olabilir
+            await sleep(3000);
+            for (let attempt = 0; attempt < 10; attempt++) {
+                try {
+                    const pollRes = await axios.get(batchUrl, {
+                        headers: { Authorization: `Basic ${authString}`, 'User-Agent': `${store.supplier_id} - SelfIntegration` },
+                        timeout: 10000,
+                    });
+                    const d = pollRes.data || {};
+                    console.log('[BATCH FULL RESPONSE]', JSON.stringify(d, null, 2));
+                    // items farklı field adıyla gelebilir; hepsini dene
+                    const itemsArray = d.items ?? d.results ?? d.products ?? d.content ?? d.data ?? [];
+                    console.log(`[upload-selected] Polling deneme ${attempt + 1}: status=${d.status} items=${itemsArray.length} (keys: ${Object.keys(d).join(',')})`);
+
+                    if (d.status === 'COMPLETED' || d.status === 'FAILED') {
+                        if (itemsArray.length === 0 && d.status === 'COMPLETED' && completedEmptyCount < 1) {
+                            // COMPLETED ama items=0 — 10 sn bekle, bir kez daha dene
+                            completedEmptyCount++;
+                            console.log(`[upload-selected] COMPLETED fakat items=0 — 10 sn bekleyip tekrar poll ediliyor (${completedEmptyCount}/1)`);
+                            await sleep(10000);
+                            continue;
+                        }
+                        batchData = { ...d, items: itemsArray };
+                        break;
+                    }
+                } catch (pollErr) {
+                    console.log(`[upload-selected] Polling hata deneme ${attempt + 1}: ${pollErr.message}`);
+                }
+                await sleep(4000);
+            }
+
+            if (!batchData) {
+                console.log(`[upload-selected] 8 denemede batch sonucu alınamadı`);
+            } else {
+                console.log(`[upload-selected] Batch sonucu: status=${batchData.status} items=${batchData.items?.length}`);
+                if (batchData.items?.length) {
+                    console.log(`[upload-selected] İlk result item: ${JSON.stringify(batchData.items[0]).slice(0, 400)}`);
+                }
+            }
+
+            // Sonuçları eşleştir
+            const byBarcode = new Map(batch.map(it => [it.barcode, it]));
+            const resultItems = batchData?.items || [];
+            const reportedBarcodes = new Set();
+
+            for (const ri of resultItems) {
+                const barcode = ri?.requestItem?.barcode || ri?.requestItem?.product?.barcode;
+                if (!barcode) { console.log(`[upload-selected] Barkod bulunamadı, ri keys: ${Object.keys(ri || {}).join(',')}`); continue; }
+                const item = byBarcode.get(barcode);
+                if (!item) { console.log(`[upload-selected] byBarcode'da bulunamadı: ${barcode}`); continue; }
+                reportedBarcodes.add(barcode);
+
+                const status = ri.status || 'UNKNOWN';
+                const reasons = (ri.failureReasons || []).join(' | ');
+                const isDuplicate = reasons.toLowerCase().includes('recurring.product.create.not.allowed')
+                    || reasons.toLowerCase().includes('already exists');
+
+                console.log(`[upload-selected] Sonuç: barcode=${barcode} status=${status} reasons=${reasons.slice(0, 100)}`);
+
+                if (status === 'SUCCESS' || isDuplicate) {
+                    updateStatus.run('uploaded', item._productId, dealerId);
+                    send({ type: 'result', id: item._productId, barcode, title: item._title, status: 'success' });
+                    succeeded++;
+                } else {
+                    updateStatus.run('failed', item._productId, dealerId);
+                    send({ type: 'result', id: item._productId, barcode, title: item._title, status: 'error', error: reasons || 'Bilinmeyen hata' });
+                    failed++;
+                }
+            }
+
+            // Raporlanmayan (batch timeout vb.)
+            for (const item of batch) {
+                if (!reportedBarcodes.has(item.barcode)) {
+                    console.log(`[upload-selected] Raporlanmayan ürün: ${item.barcode}`);
+                    updateStatus.run('processing', item._productId, dealerId);
+                    send({ type: 'result', id: item._productId, barcode: item.barcode, title: item._title, status: 'processing' });
+                }
+            }
+
+            if (i + BATCH_SIZE < items.length) await sleep(2000);
+        }
+
+        send({ type: 'done', succeeded, failed });
+        addLog('info', `upload-selected: ${succeeded} başarılı, ${failed} hatalı`, dealerId);
+    } catch (e) {
+        send({ type: 'error', message: e.message });
+        addLog('error', `upload-selected hatası: ${e.message}`, dealerId);
+    }
+
+    res.end();
+});
+
 // ══════════════════════════════════════════════════════════════
 // ADMİN ENDPOİNTLERİ
 // ══════════════════════════════════════════════════════════════
@@ -3809,6 +4369,7 @@ startOrdersCron(syncDealerOrders);
 startXmlSyncCron(importXmlFeedById);
 startPricingCron(db);
 startAutoAnswerCron();
+startReviewsCron();
 
 // has_attributes=0 olan kategorilere atanmış ürünleri incelemeye al
 try {

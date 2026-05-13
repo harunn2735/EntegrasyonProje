@@ -1023,6 +1023,7 @@
         <div class="nav-item" onclick="navigate('stock')" id="nav-stock"><span class="icon">🚨</span>Stok Uyarıları</div>
         <div class="nav-item" onclick="navigate('categories')" id="nav-categories"><span class="icon">📂</span>Kategori Yönetimi</div>
         <div class="nav-item" onclick="navigate('brands')" id="nav-brands"><span class="icon">🏷️</span>Marka Yönetimi</div>
+        <div class="nav-item" onclick="navigate('upload')" id="nav-upload"><span class="icon">🚀</span>Ürün Yükle</div>
 
         <div class="nav-group-label">Analitik</div>
         <div class="nav-item" onclick="navigate('orders')" id="nav-orders"><span class="icon">📋</span>Siparişler</div>
@@ -1036,6 +1037,7 @@
 
         <div class="nav-group-label">Diğer</div>
         <div class="nav-item" onclick="navigate('questions')" id="nav-questions"><span class="icon">💬</span>Müşteri Soruları</div>
+        <div class="nav-item" onclick="navigate('reviews')" id="nav-reviews"><span class="icon">⭐</span>Müşteri Yorumları</div>
         <div class="nav-item" onclick="navigate('health')" id="nav-health"><span class="icon">🏥</span>Ürün Sağlık Merkezi</div>
       </nav>
       <div class="sidebar-footer">
@@ -1131,6 +1133,18 @@
               </div>
               <button class="btn btn-primary btn-sm" onclick="navigate('pricing')">Önerileri İncele →</button>
             </div>
+          </div>
+
+          <!-- Yorumlar widget -->
+          <div id="dash-reviews-widget" style="display:none;margin-top:12px;padding:12px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px">
+            <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">⭐ Müşteri Yorumları</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+              <div>Bu hafta: <strong id="dash-rv-week">—</strong></div>
+              <div>Memnuniyet: <strong id="dash-rv-score">—</strong></div>
+              <div>Bekleyen yanıt: <strong id="dash-rv-pending">—</strong></div>
+              <div>Şikayet konusu: <strong id="dash-rv-complaint">—</strong></div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:12px" onclick="navigate('reviews')">Yorumları Yönet →</button>
           </div>
         </div>
 
@@ -1373,8 +1387,10 @@
         <div class="page" id="page-health"></div>
         <div class="page" id="page-stock"></div>
         <div class="page" id="page-questions"></div>
+        <div class="page" id="page-reviews"></div>
         <div class="page" id="page-categories"></div>
         <div class="page" id="page-brands"></div>
+        <div class="page" id="page-upload"></div>
 
         <!-- TRENDYOL AYARLARI -->
         <div class="page" id="page-settings">
@@ -1414,6 +1430,16 @@
               <div class="form-group">
                 <label>Varsayılan Kâr Marjı (%)</label>
                 <input id="set-margin" type="number" min="0" max="500" placeholder="20" />
+              </div>
+              <div class="form-group">
+                <label>Varsayılan Kargo Şirketi</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <select id="set-cargo-company" style="flex:1;padding:9px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px">
+                    <option value="">— Seçin —</option>
+                  </select>
+                  <button type="button" class="btn btn-ghost" style="padding:8px 12px;font-size:12px;white-space:nowrap" onclick="loadCargoCompanies()">🔄 Yenile</button>
+                </div>
+                <div id="cargo-company-hint" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
               </div>
               <div style="display:flex;gap:10px;margin-top:4px">
                 <button type="button" class="btn btn-primary" onclick="saveProfile()">💾 Kaydet</button>
@@ -1671,7 +1697,7 @@
       document.getElementById('topbar-actions').innerHTML = '';
       document.getElementById('page-' + page)?.classList.add('active');
       document.getElementById('nav-' + page)?.classList.add('active');
-      const titles = { dashboard: 'Dashboard', xml: 'XML Feedler', products: 'Ürünlerim', margins: 'Kâr Marjları', profitloss: 'Kâr / Zarar Analizi', stores: 'Mağazalarım', orders: 'Siparişler', analytics: 'Satış Grafikleri', forecast: 'Talep Tahmini', pricing: 'Fiyat Önerileri', 'pricing-rules': 'Fiyat Kuralları', questions: 'Müşteri Soruları', health: 'Ürün Sağlık Merkezi', stock: 'Stok Uyarıları', settings: 'Trendyol Ayarları', categories: 'Kategori Yönetimi', brands: 'Marka Yönetimi' };
+      const titles = { dashboard: 'Dashboard', xml: 'XML Feedler', products: 'Ürünlerim', margins: 'Kâr Marjları', profitloss: 'Kâr / Zarar Analizi', stores: 'Mağazalarım', orders: 'Siparişler', analytics: 'Satış Grafikleri', forecast: 'Talep Tahmini', pricing: 'Fiyat Önerileri', 'pricing-rules': 'Fiyat Kuralları', questions: 'Müşteri Soruları', reviews: 'Müşteri Yorumları', health: 'Ürün Sağlık Merkezi', stock: 'Stok Uyarıları', settings: 'Trendyol Ayarları', categories: 'Kategori Yönetimi', brands: 'Marka Yönetimi', upload: 'Ürün Yükle' };
       document.getElementById('page-title').textContent = titles[page] || page;
       if (page === 'dashboard') loadDashboard();
       if (page === 'xml') loadXmlFeeds();
@@ -1685,17 +1711,22 @@
       if (page === 'pricing') loadPricingPage();
       if (page === 'pricing-rules') loadPricingRulesPage();
       if (page === 'questions') loadQuestions();
+      if (page === 'reviews') loadReviewsPage();
       if (page === 'health') loadHealthPage();
       if (page === 'stock') loadStockAlertsPage();
       if (page === 'settings') loadSettings();
       if (page === 'categories') loadKategorilerPage();
       if (page === 'brands') loadBrandsPage();
+      if (page === 'upload') loadUploadPage();
     }
 
     // ─── SETTINGS ───
     async function loadSettings() {
       try {
-        const d = await api('/api/auth/me');
+        const [d, settings] = await Promise.all([
+          api('/api/auth/me'),
+          api('/api/dealer/settings'),
+        ]);
         if (!d) return;
         document.getElementById('set-name').value = d.name || '';
         document.getElementById('set-phone').value = d.phone || '';
@@ -1710,7 +1741,32 @@
         statusEl.innerHTML = hasApi
           ? `<span style="color:var(--green)">✅ API bilgileri mevcut. Supplier ID: <strong>${d.supplier_id}</strong></span>`
           : `<span style="color:var(--red)">⚠️ API bilgileri eksik. Lütfen Supplier ID, API Key ve API Secret girin.</span>`;
+        // Kargo şirketleri
+        if (hasApi) await loadCargoCompanies(settings?.cargo_company_id);
       } catch (e) { toast(e.message, 'error'); }
+    }
+
+    async function loadCargoCompanies(savedId) {
+      const sel = document.getElementById('set-cargo-company');
+      const hint = document.getElementById('cargo-company-hint');
+      hint.textContent = 'Yükleniyor...';
+      try {
+        const data = await api('/api/dealer/trendyol-cargo-companies');
+        // Trendyol yanıtı farklı şekillerde gelebilir
+        const list = Array.isArray(data) ? data : (data?.cargoCompanies || data?.result || []);
+        sel.innerHTML = '<option value="">— Seçin —</option>';
+        list.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id ?? c.cargoCompanyId ?? c.code ?? '';
+          opt.textContent = c.name ?? c.cargoCompanyName ?? String(opt.value);
+          sel.appendChild(opt);
+        });
+        const current = savedId ?? document.getElementById('set-cargo-company').dataset.saved;
+        if (current) sel.value = String(current);
+        hint.textContent = list.length ? `${list.length} kargo şirketi listelendi.` : 'Kargo şirketi bulunamadı.';
+      } catch (e) {
+        hint.textContent = `Yüklenemedi: ${e.message}`;
+      }
     }
 
     async function saveProfile() {
@@ -1723,8 +1779,12 @@
         profit_margin: parseFloat(document.getElementById('set-margin').value) || 20,
         password: document.getElementById('set-password').value,
       };
+      const cargoVal = document.getElementById('set-cargo-company')?.value;
       try {
         await api('/api/dealer/profile', { method: 'PUT', body: JSON.stringify(body) });
+        if (cargoVal) {
+          await api('/api/dealer/settings', { method: 'PUT', body: JSON.stringify({ cargo_company_id: cargoVal }) });
+        }
         toast('✅ Profil kaydedildi!', 'success');
         loadSettings();
       } catch (e) { toast(e.message, 'error'); }
@@ -1836,6 +1896,22 @@
           sub.textContent = `Tahmini aylık gelir etkisi: ${sign}₺${Math.abs(impact).toLocaleString('tr', {maximumFractionDigits:0})}`;
         } else {
           widget.style.display = 'none';
+        }
+      } catch (e) { /* widget yüklenemezse sessizce geç */ }
+
+      // Yorumlar widget
+      try {
+        const d2 = await api('/api/dealer/dashboard');
+        const rv = d2?.reviewStats;
+        if (rv) {
+          const rvWidget = document.getElementById('dash-reviews-widget');
+          if (rvWidget) {
+            document.getElementById('dash-rv-week').textContent      = rv.this_week ?? 0;
+            document.getElementById('dash-rv-score').textContent     = `%${rv.satisfaction_pct ?? 0}`;
+            document.getElementById('dash-rv-pending').textContent   = rv.pending_response ?? 0;
+            document.getElementById('dash-rv-complaint').textContent = rv.top_complaint ?? '—';
+            rvWidget.style.display = (rv.this_week > 0 || rv.pending_response > 0) ? 'block' : 'none';
+          }
         }
       } catch (e) { /* widget yüklenemezse sessizce geç */ }
     }
@@ -2785,6 +2861,7 @@
   <script src="/js/analyticsPage.js"></script>
   <script src="/js/forecastPage.js"></script>
   <script src="/js/questionsPage.js"></script>
+  <script src="/js/musteriYorumlariPage.js"></script>
   <script src="/js/profitLossPage.js"></script>
   <script src="/js/pricingPage.js"></script>
   <script src="/js/pricingRulesPage.js"></script>
@@ -2792,6 +2869,7 @@
   <script src="/js/stockAlertsPage.js"></script>
   <script src="/js/kategorilerPage.js"></script>
   <script src="/js/markaYonetimiPage.js"></script>
+  <script src="/js/urunYuklePage.js"></script>
 </body>
 
 </html>
