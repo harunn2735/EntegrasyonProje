@@ -3,8 +3,11 @@ require('dotenv').config();
 
 const { generate } = require('./geminiClient');
 
+const _hasGeminiKey = () =>
+  !!(process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEYS);
+
 async function generateAnswer(storeName, productName, questionText) {
-  if (!process.env.GEMINI_API_KEY) return null;
+  if (!_hasGeminiKey()) return null;
   try {
     return await generate(
       `Sen bir Trendyol satıcısısın. Mağaza adı: ${storeName}.\nMüşteri "${productName}" ürünü hakkında şunu sordu: "${questionText}"\nTürkçe, kısa (1-3 cümle), samimi ve yardımsever bir cevap yaz.\nSadece cevap metnini döndür, başka hiçbir şey ekleme.`,
@@ -17,7 +20,7 @@ async function generateAnswer(storeName, productName, questionText) {
 }
 
 async function generateForecastComment(productName, weeklySales, trend, forecast7d) {
-  if (!process.env.GEMINI_API_KEY) return null;
+  if (!_hasGeminiKey()) return null;
   try {
     const trendLabel = trend > 0.1 ? 'artıyor' : trend < -0.1 ? 'azalıyor' : 'stabil';
     const weekLabels = ['4 hafta önce', '3 hafta önce', '2 hafta önce', 'geçen hafta'];
@@ -34,7 +37,7 @@ async function generateForecastComment(productName, weeklySales, trend, forecast
 }
 
 async function categorizeQuestion(questionText, productName) {
-  if (!process.env.GEMINI_API_KEY) return null;
+  if (!_hasGeminiKey()) return null;
   try {
     const raw = await generate(
       `Şu Türkçe müşteri sorusunu kategorize et.\nÜrün: ${productName}\nSoru: ${questionText}\n\nSadece JSON döndür, başka hiçbir şey yazma:\n{"category": "kategori_adi", "confidence": 0.95}\n\nGeçerli kategoriler:\nurun_ozellikleri, kargo_teslimat, iade_talebi, fiyat_kampanya, stok_durumu`,

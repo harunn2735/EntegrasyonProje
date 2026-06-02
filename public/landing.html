@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bayi Portalı – Trendyol Entegrasyon Sistemi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #6366f1;
+      --accent-dark: #4f46e5;
+      --accent-light: #818cf8;
+      --blue: #3b82f6;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --radius: 14px;
+      --shadow: 0 4px 24px rgba(0,0,0,.08);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── NAVBAR ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .nav-logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .nav-logo-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+
+    .nav-logo-text strong {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .nav-logo-text span {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 500;
+      transition: color .2s;
+    }
+
+    .nav-links a:hover { color: var(--accent); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 22px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      text-decoration: none;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(99,102,241,.35);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--accent);
+      border: 2px solid var(--accent);
+    }
+
+    .btn-outline:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-large {
+      padding: 14px 32px;
+      font-size: 16px;
+      border-radius: 12px;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 40%, #3b82f6 100%);
+      min-height: 620px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 80px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .hero-content {
+      position: relative;
+      max-width: 760px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      color: #fff;
+      padding: 6px 16px;
+      border-radius: 50px;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      font-size: clamp(32px, 5vw, 56px);
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      letter-spacing: -0.5px;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(90deg, #fbbf24, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: clamp(16px, 2vw, 20px);
+      color: rgba(255,255,255,.85);
+      max-width: 580px;
+      margin: 0 auto 36px;
+      font-weight: 400;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-hero {
+      background: #fff;
+      color: var(--accent-dark);
+      font-weight: 700;
+      padding: 15px 36px;
+      font-size: 16px;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.2);
+    }
+
+    .btn-hero:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.25);
+      background: #f8fafc;
+    }
+
+    /* ── SECTIONS ── */
+    section {
+      padding: 88px 24px;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ede9fe;
+      color: var(--accent);
+      padding: 5px 14px;
+      border-radius: 50px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(26px, 4vw, 38px);
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 12px;
+      letter-spacing: -0.3px;
+    }
+
+    .section-subtitle {
+      font-size: 17px;
+      color: var(--text-muted);
+      max-width: 540px;
+      margin-bottom: 56px;
+    }
+
+    /* ── FEATURES ── */
+    .features-bg {
+      background: var(--bg);
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+      transition: transform .2s, box-shadow .2s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.12);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+
+    .feature-card h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .how-bg {
+      background: linear-gradient(135deg, #faf5ff 0%, #eff6ff 100%);
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 32px;
+    }
+
+    .step-card {
+      text-align: center;
+      padding: 36px 24px;
+      position: relative;
+    }
+
+    .step-number {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, var(--accent), var(--blue));
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 800;
+      margin: 0 auto 20px;
+      box-shadow: 0 8px 24px rgba(99,102,241,.3);
+    }
+
+    .step-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .step-card p {
+      font-size: 15px;
+      color: var(--text-muted);
+    }
+
+    /* ── STATS ── */
+    .stats-bg {
+      background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+      padding: 64px 24px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 32px;
+      text-align: center;
+    }
+
+    .stat-box {
+      color: #fff;
+    }
+
+    .stat-box .stat-value {
+      font-size: clamp(32px, 4vw, 48px);
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, #fff, #c7d2fe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .stat-box .stat-label {
+      font-size: 15px;
+      color: rgba(255,255,255,.75);
+      font-weight: 500;
+    }
+
+    /* ── CTA ── */
+    .cta-bg {
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .cta-inner {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .cta-inner h2 {
+      font-size: clamp(26px, 4vw, 38px);
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: -0.3px;
+    }
+
+    .cta-inner p {
+      font-size: 17px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      background: #0f172a;
+      color: rgba(255,255,255,.6);
+      text-align: center;
+      padding: 28px 24px;
+      font-size: 14px;
+    }
+
+    footer strong {
+      color: rgba(255,255,255,.9);
+    }
+
+    footer .footer-divider {
+      margin: 0 10px;
+      opacity: .4;
+    }
+
+    @media (max-width: 640px) {
+      nav { padding: 0 16px; }
+      .nav-links { display: none; }
+      section { padding: 60px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav>
+    <a href="/" class="nav-logo">
+      <div class="nav-logo-icon">🛒</div>
+      <div class="nav-logo-text">
+        <strong>Bayi Portalı</strong>
+        <span>Trendyol Entegrasyon Sistemi</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="#features">Özellikler</a></li>
+      <li><a href="#how-it-works">Nasıl Çalışır</a></li>
+    </ul>
+
+    <a href="/login" class="btn btn-primary">Giriş Yap</a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">
+        ✨ Yapay Zeka Destekli Platform
+      </div>
+      <h1>Trendyol Mağazanızı<br /><span>Yapay Zeka ile</span> Yönetin</h1>
+      <p>Ürün yükleme, kategori eşleştirme, kâr analizi ve müşteri yönetimi tek panelde otomatik.</p>
+      <div class="hero-cta">
+        <a href="/login" class="btn btn-hero">Hemen Başla →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features-bg" id="features">
+    <div class="container">
+      <div class="section-label">⚡ Özellikler</div>
+      <h2 class="section-title">Her şey tek panelde</h2>
+      <p class="section-subtitle">Trendyol mağazanızı yönetmek için ihtiyacınız olan her araç burada.</p>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🤖</div>
+          <h3>AI Kategori Eşleştirme</h3>
+          <p>5000+ kategori arasından doğru olanı Gemini AI seçer. Manuel uğraş yok, hata yok.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📦</div>
+          <h3>Otomatik Ürün Yükleme</h3>
+          <p>XML feed'inizden Trendyol'a tek tıkla toplu yükleme. Binlerce ürünü saniyeler içinde aktarın.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💰</div>
+          <h3>Kâr/Zarar Analizi</h3>
+          <p>Komisyon, KDV ve kargo dahil gerçek net kâr hesabı. Hangi ürünün kazandırdığını görün.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💬</div>
+          <h3>Müşteri Soru-Cevap</h3>
+          <p>Gelen sorulara AI ile otomatik yanıt. Müşteri memnuniyetini artırın, zamanınızı kazanın.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Talep Tahmini</h3>
+          <p>Geçmiş satış verilerine göre AI tahmini. Stok planlamanızı önceden yapın.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏷️</div>
+          <h3>Dinamik Fiyatlandırma</h3>
+          <p>Satış hızına göre otomatik fiyat önerisi. Rekabetçi kalın, kârınızı koruyun.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-bg" id="how-it-works">
+    <div class="container">
+      <div class="section-label">🔧 Nasıl Çalışır</div>
+      <h2 class="section-title">3 adımda hazır</h2>
+      <p class="section-subtitle">Karmaşık kurulum yok. Dakikalar içinde Trendyol'da satışa başlayın.</p>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <h3>XML Feed Ekle</h3>
+          <p>Tedarikçi ürünlerinizi sisteme bağlayın. URL veya dosya ile desteklenir.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <h3>AI İşler</h3>
+          <p>Yapay zeka ürünleri kategorize eder, özellikleri doldurur ve kontrol eder.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <h3>Trendyol'a Yüklenir</h3>
+          <p>Ürünler otomatik olarak platforma gönderilir. Siz sadece takip edin.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="stats-bg">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-value">5000+</div>
+          <div class="stat-label">Kategori Desteği</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">%85+</div>
+          <div class="stat-label">AI Güven Skoru</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">Saatlik</div>
+          <div class="stat-label">Otomasyon Döngüsü</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">7/24</div>
+          <div class="stat-label">Kesintisiz Çalışma</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-bg">
+    <div class="container cta-inner">
+      <h2>Hemen kullanmaya başlayın</h2>
+      <p>Trendyol mağazanızı daha akıllı yönetmek için bir adım uzaktasınız.</p>
+      <a href="/login" class="btn btn-primary btn-large">Giriş Yap →</a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <strong>Bayi Portalı – Trendyol Entegrasyon Sistemi</strong>
+    <span class="footer-divider">|</span>
+    © 2025 – Bitirme Projesi
+  </footer>
+
+</body>
+</html>

@@ -341,7 +341,7 @@
           aiDiv.innerHTML = `<div class="fp-ai-text">${esc(data.aiComment)}</div>`;
         } else {
           aiDiv.innerHTML =
-            '<span class="fp-ai-nokey">⚠️ AI yorumu için ANTHROPIC_API_KEY gerekli.</span>';
+            '<span class="fp-ai-nokey">⚠️ AI yorumu şu an kullanılamıyor.</span>';
         }
       }
     } catch (e) {
