@@ -1575,8 +1575,7 @@ async function importXmlFeedById(dealerId, feedId) {
     for (const [barcode, info] of pendingContent) {
         try {
             const content = await urunIcerikUret(
-                { title: info.title, category: info.category, brand: info.brand },
-                dealerId
+                [info.brand, info.title, info.category].filter(Boolean).join(' ')
             );
             aiContentMap.set(barcode, content);
         } catch (_) {
@@ -2322,11 +2321,9 @@ app.post('/api/dealer/products/bulk-generate-content', authMiddleware, async (re
         let generated = 0;
         for (const p of products) {
             try {
-                const { baslik, aciklama } = await urunIcerikUret({
-                    title: p.title,
-                    category: p.category,
-                    brand: p.supplier_name,
-                }, dealerId);
+                const { baslik, aciklama } = await urunIcerikUret(
+                    [p.supplier_name, p.title, p.category].filter(Boolean).join(' ')
+                );
                 updateStmt.run(baslik, aciklama, p.id, dealerId);
                 generated++;
             } catch (_) {
@@ -2354,11 +2351,9 @@ app.post('/api/dealer/products/:id/generate-content', authMiddleware, async (req
         ).get(productId, dealerId);
         if (!product) return res.status(404).json({ error: 'Ürün bulunamadı' });
 
-        const { baslik, aciklama } = await urunIcerikUret({
-            title: product.title,
-            category: product.category,
-            brand: product.supplier_name,
-        }, dealerId);
+        const { baslik, aciklama } = await urunIcerikUret(
+            [product.supplier_name, product.title, product.category].filter(Boolean).join(' ')
+        );
 
         db.prepare(`
             UPDATE dealer_products

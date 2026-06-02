@@ -1,59 +1,24 @@
 'use strict';
 
-const db = require('../database');
-const { generate } = require('./geminiClient');
+const geminiClient = require('./geminiClient');
 
-function addLog(level, message, dealerId = null) {
-  try {
-    db.prepare('INSERT INTO logs (level, message, dealer_id) VALUES (?, ?, ?)').run(level, message, dealerId);
-  } catch (_) {}
-}
+async function urunIcerikUret(urunAdi) {
+  const prompt = `Bir Trendyol ürünü için Türkçe içerik yaz.
+Ürün adı: ${urunAdi}
 
-async function urunIcerikUret({ title = '', category = '', brand = '', attributes = {} } = {}, dealerId = null) {
-  if (!process.env.GEMINI_API_KEY) {
-    const msg = 'urunIcerikUret: GEMINI_API_KEY tanımlı değil';
-    addLog('error', msg, dealerId);
-    throw new Error(msg);
-  }
+Sadece şu iki satırı yaz, başka hiçbir şey ekleme:
+BASLIK: (100 karakterden kısa, SEO uyumlu başlık)
+ACIKLAMA: (200-300 karakterlik ürün açıklaması)`;
 
-  const attrStr = attributes && Object.keys(attributes).length > 0
-    ? Object.entries(attributes).map(([k, v]) => `${k}: ${v}`).join(', ')
-    : null;
+  const text = await geminiClient.generate(prompt);
 
-  const prompt = `Bir Trendyol ürünü için SEO uyumlu başlık ve açıklama üret.
+  const baslikMatch = text.match(/BASLIK:\s*(.+)/);
+  const aciklamaMatch = text.match(/ACIKLAMA:\s*(.+)/s);
 
-Ürün Bilgileri:
-- Mevcut Başlık: ${title || '(belirtilmemiş)'}
-- Kategori: ${category || '(belirtilmemiş)'}
-- Marka: ${brand || '(belirtilmemiş)'}${attrStr ? `\n- Özellikler: ${attrStr}` : ''}
+  const baslik = baslikMatch ? baslikMatch[1].trim().substring(0, 100) : urunAdi;
+  const aciklama = aciklamaMatch ? aciklamaMatch[1].trim().substring(0, 500) : '';
 
-Kurallar:
-- Başlık: En fazla 100 karakter, SEO uyumlu, Trendyol formatında (Marka + Ürün Adı + Önemli Özellik)
-- Açıklama: 200-400 karakter arası, Türkçe, ürünün özelliklerini ve faydalarını vurgula, doğal ve akıcı dil
-- Gereksiz tekrar veya dolgu kelime kullanma
-
-SADECE aşağıdaki JSON formatında yanıt ver, başka hiçbir şey ekleme:
-{"baslik": "...", "aciklama": "..."}`;
-
-  try {
-    const text = await generate(prompt, { maxOutputTokens: 512 });
-    if (!text) throw new Error('Gemini boş yanıt döndürdü');
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error(`Geçerli JSON bulunamadı. Yanıt: ${text.slice(0, 200)}`);
-
-    const result = JSON.parse(jsonMatch[0]);
-    if (typeof result.baslik !== 'string' || typeof result.aciklama !== 'string') {
-      throw new Error(`Eksik alan. Alınan: ${JSON.stringify(result)}`);
-    }
-
-    result.baslik = result.baslik.trim().substring(0, 100);
-    result.aciklama = result.aciklama.trim();
-    return result;
-  } catch (err) {
-    addLog('error', `urunIcerikUret hatası [${title}]: ${err.message}`, dealerId);
-    throw err;
-  }
+  return { baslik, aciklama };
 }
 
 module.exports = { urunIcerikUret };

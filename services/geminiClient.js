@@ -55,6 +55,7 @@ function getModel(opts = {}, key) {
   const resolvedKey = key ?? _keys[_keyIndex] ?? _keys[0];
   const generationConfig = {};
   if (opts.maxOutputTokens) generationConfig.maxOutputTokens = opts.maxOutputTokens;
+  if (opts.temperature != null) generationConfig.temperature = opts.temperature;
   if (opts.jsonMode)         generationConfig.responseMimeType = 'application/json';
   if (opts.noThinking)       generationConfig.thinkingConfig = { thinkingBudget: 0 };
 
